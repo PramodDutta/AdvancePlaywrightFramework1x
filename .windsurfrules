@@ -1,0 +1,49 @@
+# Windsurf Rules — AdvancePlaywrightFramework1x
+
+Playwright TypeScript framework. Page Object Model + fixtures + tags.
+
+## Hard rules
+
+### Adding/modifying tests under `src/tests/**`
+
+After ANY test file change, MUST run:
+
+```bash
+npm run typecheck
+npm run lint
+```
+
+Both must pass (exit 0) before reporting work complete.
+
+## Project structure
+
+- `src/api/` — API clients
+- `src/config/` — env/config loaders
+- `src/fixtures/` — Playwright fixtures
+- `src/pages/` — Page Objects
+- `src/testdata/` — CSV/JSON/XLSX test data
+- `src/tests/` — spec files
+- `src/utils/` — helpers (logger, CustomReporter)
+
+## Path aliases (tsconfig)
+
+`@api/*`, `@config/*`, `@fixtures/*`, `@pages/*`, `@testdata/*`, `@tests/*`, `@utils/*`
+
+Use aliases — no `../../../` imports.
+
+## Test conventions
+
+- Every test carries a tag: `@p0`, `@p1`, `@e2e`, `@smoke`, `@lor`.
+- No `test.only` / `test.skip` without ticket reference.
+- Page Object Model — no raw selectors in spec files.
+- Use `logger` from `@utils/logger` instead of `console.log`.
+
+## NPM scripts
+
+`test`, `test:ui`, `test:chromium`, `test:firefox`, `test:webkit`, `test:debug`,
+`test:p0`, `test:p1`, `test:e2e`, `test:lor`, `test:report`,
+`typecheck`, `lint`, `lint:fix`, `format`, `format:check`, `build`, `clean`.
+
+## Full rules
+
+See [rules/](./rules/) and [CLAUDE.md](./CLAUDE.md).
