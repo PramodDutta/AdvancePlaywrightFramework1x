@@ -21,6 +21,11 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [Environment Configuration](#environment-configuration)
 - [Test Tags & Filtering](#test-tags--filtering)
 - [Logging (Winston)](#logging-winston)
+- [Element Utilities (UtilElementLocator)](#element-utilities-utilelementlocator)
+- [Page Objects (BasePage)](#page-objects-basepage)
+- [Test Data Factory (Faker)](#test-data-factory-faker)
+- [Writing Tests — Steps + Logging](#writing-tests--steps--logging)
+- [ESM & Import Extensions](#esm--import-extensions)
 - [Reporting](#reporting)
 - [AI Agent Rules](#ai-agent-rules)
 - [Project Rules](#project-rules)
@@ -64,7 +69,9 @@ AdvancePlaywrightFramework1x/
 │   ├── testdata/              # CSV / JSON / XLSX test data
 │   ├── tests/                 # Spec files (*.spec.ts)
 │   └── utils/                 # Helpers
-│       ├── logger.ts          # Winston logger
+│       ├── logger.ts          # Winston logger (+ createLogger scope)
+│       ├── UtilElementLocator.ts  # Locator action wrapper (Flex type)
+│       ├── DataGenerator.ts   # Faker test-data factory
 │       └── CustomReporter.ts  # TTA HTML reporter
 │
 ├── docs/
@@ -184,8 +191,8 @@ Defined in `tsconfig.json`:
 
 Example:
 ```ts
-import logger from '@utils/logger';
-import { LoginPage } from '@pages/LoginPage';
+import logger from '@utils/logger.js';
+import { LoginPage } from '@pages/LoginPage.js';
 import { users } from '@testdata/users.json';
 ```
 
@@ -238,7 +245,7 @@ npx playwright test --grep-invert "@flaky"
 ## Logging (Winston)
 
 ```ts
-import logger from '@utils/logger';
+import logger from '@utils/logger.js';
 
 logger.info('login start', { user: 'pramod' });
 logger.warn('slow API response', { ms: 3200 });
@@ -250,6 +257,196 @@ Output:
 - Console — colorized, timestamped
 - `logs/error.log` — errors only (JSON, 5MB rotation × 5)
 - `logs/combined.log` — everything (JSON, 5MB rotation × 5)
+
+Scoped child loggers tag every line with their origin:
+
+```ts
+import { createLogger } from '@utils/logger.js';
+
+const log = createLogger('LoginPage');
+log.info('loginAs standard_user');
+// 2026-06-02 08:10:23 [info] [LoginPage] loginAs standard_user
+```
+
+---
+
+## Element Utilities (UtilElementLocator)
+
+**Concept:** `UtilElementLocator` is a thin wrapper around Playwright's `Locator` that exposes intent-revealing action helpers (`click`, `fill`, `getText`, `waitForVisible`, …) and accepts either a CSS string **or** a built `Locator` via the `Flex` type.
+
+**Why:** Page Objects shouldn't repeat `await page.locator(sel).click({ timeout })` everywhere. One wrapper centralises timeouts, logging, and the string-or-Locator ambiguity.
+
+**Q&A — why use this?**
+- **Q: Why the `Flex = string | Locator` type?** A: Call sites pass `'[data-test="username"]'` *or* `page.getByTestId('username')` — the wrapper normalises both via `toLocator()`.
+- **Q: Where do the debug logs come from?** A: Each instance owns a scoped Winston logger (`createLogger(scope)`); actions like `click`/`fill` emit a `debug` line.
+- **Q: Why keep a `type()` method when Playwright deprecated `.type()`?** A: It maps to `pressSequentially()` under the hood but keeps a name students recognise.
+
+```mermaid
+flowchart TD
+    A["target: Flex (string | Locator)"] --> B{typeof string?}
+    B -->|Yes| C["page.locator&#40;target&#41;"]
+    B -->|No| D[use Locator as-is]
+    C --> E[action: click / fill / getText ...]
+    D --> E
+    E --> F[log.debug + Playwright call]
+```
+
+```ts
+import { UtilElementLocator } from '@utils/UtilElementLocator.js';
+
+const el = new UtilElementLocator(page, 'LoginPage');
+await el.fill('[data-test="username"]', 'standard_user');
+await el.click(page.getByTestId('login-button'));
+await el.waitForVisible('[data-test="inventory-container"]');
+```
+
+---
+
+## Page Objects (BasePage)
+
+**Concept:** `BasePage` is the abstract parent for every Page Object. It wires up the three things each page needs — the `page` handle, an `el` (`UtilElementLocator`), and a scoped `log` — plus a `goto()` navigation helper.
+
+**Why:** Removes boilerplate from every page and guarantees consistent logging scope (the subclass name) and a single navigation pattern.
+
+**Q&A — why use this?**
+- **Q: What does the constructor's `scope` argument do?** A: It names the logger and the element-util instance, so logs read `[LoginPage] …`.
+- **Q: Does BasePage pre-build any locators?** A: No — subclasses declare their own `private readonly` Locator fields. Base stays intentionally thin.
+- **Q: Why is `goto()` protected?** A: Navigation is an internal detail; pages expose intent methods like `open()` instead.
+
+```mermaid
+classDiagram
+    class BasePage {
+        #page: Page
+        #el: UtilElementLocator
+        #log: Logger
+        #goto(path) Promise
+    }
+    class LoginPage {
+        +open() Promise
+        +loginAs(user, pass) Promise
+    }
+    BasePage <|-- LoginPage
+```
+
+```ts
+import { BasePage } from './BasePage.js';
+
+export class LoginPage extends BasePage {
+    static readonly PATH = '/playwright/ttacart/index.html';
+    private readonly usernameInput = this.page.locator('[data-test="username"]');
+
+    constructor(page: Page) {
+        super(page, 'LoginPage');
+    }
+
+    async open(): Promise<void> {
+        await this.goto(LoginPage.PATH);
+    }
+}
+```
+
+---
+
+## Test Data Factory (Faker)
+
+**Concept:** `DataGenerator` is a static factory over `@faker-js/faker` producing the data TTACart needs — login credentials, checkout customer info, and full user profiles.
+
+**Why:** Hard-coded fixtures rot and collide. Random-but-typed data keeps tests independent and surfaces validation bugs.
+
+**Q&A — why use this?**
+- **Q: Why static methods?** A: No state to hold — call `DataGenerator.credentials()` without `new`.
+- **Q: What's `checkoutCustomer()` for?** A: The TTACart checkout step-one form needs `firstName`, `lastName`, `postalCode` — one call returns all three.
+- **Q: Faker v10 gotcha?** A: It's ESM-only and renamed APIs — use `faker.internet.username()` (not `userName`) and `faker.location.zipCode()` (not `address.zipCode`).
+
+```mermaid
+mindmap
+  root((DataGenerator))
+    credentials
+      username
+      password
+    checkoutCustomer
+      firstName
+      lastName
+      postalCode
+    userProfile
+      email
+      fullName
+      phone
+```
+
+```ts
+import { DataGenerator } from '@utils/DataGenerator.js';
+
+const { username, password } = DataGenerator.credentials();
+const customer = DataGenerator.checkoutCustomer();
+// { firstName: 'Jaylen', lastName: 'Hahn', postalCode: '90210' }
+```
+
+---
+
+## Writing Tests — Steps + Logging
+
+**Concept:** Wrap each logical action in `test.step('label', async () => {…})` and emit a scoped logger line inside it. The custom TTA reporter surfaces both — step titles **and** their console output.
+
+**Why:** Plain Page-Object calls don't appear as steps in the report. `CustomReporter` only records `step.category === 'test.step'`, and pipes test stdout into each step's console block.
+
+**Q&A — why use this?**
+- **Q: Why does the report show empty steps without this?** A: Without `test.step()`, there are no `test.step` categories for the reporter to capture.
+- **Q: Where do per-step logs come from?** A: `associateLogsWithSteps` matches test stdout (your `log.info(...)`) to steps by title and order.
+- **Q: Do I still get the assertion?** A: Yes — `expect()` lives inside its own step, so a failure pins to that step.
+
+```mermaid
+sequenceDiagram
+    participant T as test.step
+    participant R as CustomReporter
+    T->>R: onStepBegin (category=test.step)
+    T->>T: log.info(...) → stdout
+    T->>R: onStepEnd (title, duration, status)
+    R->>R: associateLogsWithSteps(stdout)
+    R-->>R: render step + console block in HTML
+```
+
+```ts
+import { test, expect } from '@playwright/test';
+import { LoginPage } from '@pages/LoginPage.js';
+import { createLogger } from '@utils/logger.js';
+
+const log = createLogger('login.spec');
+
+test('logs in with valid credentials @p0', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+    await test.step('Open the TTACart login page', async () => {
+        log.info('Opening the TTACart login page');
+        await loginPage.open();
+    });
+    await test.step('Login as standard_user', async () => {
+        log.info('Logging in as standard_user');
+        await loginPage.loginAs('standard_user', 'tta_secret');
+    });
+    await test.step('Verify login form is hidden', async () => {
+        await expect(page.locator('[data-test="login-button"]')).toBeHidden();
+    });
+});
+```
+
+---
+
+## ESM & Import Extensions
+
+**Concept:** The project is native ESM (`"type": "module"` + `module: Node16`). Relative and path-alias imports MUST carry an explicit `.js` extension — even though the source is `.ts`.
+
+**Why:** `@faker-js/faker` v10 is ESM-only, forcing the whole project to ESM. Node ESM resolution does not guess extensions or `index.js`.
+
+**Q&A — why use this?**
+- **Q: Why `.js` when the file is `.ts`?** A: TypeScript compiles `BasePage.ts` → `BasePage.js`; at runtime only `.js` exists, so imports target the emitted name.
+- **Q: Do package imports need `.js`?** A: No — only relative/alias file imports (`./BasePage.js`, `@utils/logger.js`). `@playwright/test` and `@faker-js/faker` stay bare.
+- **Q: Barrel file `index.ts` too?** A: Yes — every re-export inside a barrel needs `.js` as well.
+
+```ts
+import { BasePage } from './BasePage.js';          // ✅ relative + .js
+import { LoginPage } from '@pages/LoginPage.js';     // ✅ alias + .js
+import { test } from '@playwright/test';             // ✅ package, no extension
+```
 
 ---
 

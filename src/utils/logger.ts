@@ -1,46 +1,57 @@
+/**
+ * logger — Winston-backed logging for the TTACart framework.
+ *
+ * Two ways to use it:
+ *   - `logger`              -> the shared root logger (framework-wide messages)
+ *   - `createLogger(scope)` -> a child logger tagged with a scope label, so
+ *                              every line shows WHERE it came from. Page Objects
+ *                              pass their class name as the scope, e.g.
+ *                              `createLogger('LoginPage')`.
+ *
+ * Level is driven by the LOG_LEVEL env var (default 'info'). Output goes to the
+ * console (pretty, colourised) and to `logs/combined.log` (plain text) so CI
+ * runs leave an artifact behind.
+ */
+
 import winston from 'winston';
-import path from 'path';
 
-const { combine, timestamp, printf, colorize, errors, splat, json } = winston.format;
+const { combine, timestamp, printf, colorize, errors } = winston.format;
 
-const logDir = path.resolve(process.cwd(), 'logs');
+const LOG_LEVEL = process.env.LOG_LEVEL ?? 'info';
 
-const consoleFormat = printf(({ level, message, timestamp: ts, stack, ...meta }) => {
-  const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
-  return `[${ts}] ${level}: ${stack || message}${metaStr}`;
+/** `2026-06-02 07:40:01 [info] [LoginPage] clicked #login-button` */
+const lineFormat = printf(({ level, message, timestamp: ts, scope }) => {
+    const tag = scope ? ` [${scope as string}]` : '';
+    return `${ts as string} [${level}]${tag} ${message as string}`;
 });
 
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: combine(
-    errors({ stack: true }),
-    splat(),
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' })
-  ),
-  defaultMeta: { service: 'playwright-tests' },
-  transports: [
-    new winston.transports.Console({
-      format: combine(
-        colorize(),
-        timestamp({ format: 'HH:mm:ss.SSS' }),
-        consoleFormat
-      ),
-    }),
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      format: json(),
-      maxsize: 5 * 1024 * 1024,
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      format: json(),
-      maxsize: 5 * 1024 * 1024,
-      maxFiles: 5,
-    }),
-  ],
-  exitOnError: false,
+export const logger = winston.createLogger({
+    level: LOG_LEVEL,
+    format: combine(
+        errors({ stack: true }),
+        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        lineFormat,
+    ),
+    transports: [
+        new winston.transports.Console({
+            format: combine(
+                colorize({ level: true }),
+                timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+                lineFormat,
+            ),
+        }),
+        new winston.transports.File({ filename: 'logs/combined.log' }),
+    ],
 });
+
+/**
+ * Build a scoped child logger. Every line it emits carries the `scope` label.
+ * Use the calling class name as the scope.
+ */
+export function createLogger(scope: string): winston.Logger {
+    return logger.child({ scope });
+}
+
+export type Logger = winston.Logger;
 
 export default logger;
