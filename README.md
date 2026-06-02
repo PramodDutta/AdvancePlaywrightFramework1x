@@ -9,11 +9,6 @@
 
 A complete, opinionated, batteries-included Playwright framework with **Page Object Model**, **fixtures**, **data-driven testing**, **multi-env config**, **Winston logging**, a **custom HTML reporter**, **Allure**, and **CI-ready scripts**.
 
-<img width="1920" height="6744" alt="image" src="https://github.com/user-attachments/assets/0fe1096f-befd-4cc5-8bb9-63a06ea80fb6" />
-
-
-
-
 ---
 
 ## Table of Contents
