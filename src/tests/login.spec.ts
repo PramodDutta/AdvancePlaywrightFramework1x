@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { LoginPage } from '@pages/LoginPage.js';
-import { createLogger } from '@utils/logger.js';
+import { LoginPage } from '@pages/LoginPage';
+import { createLogger } from '@utils/logger';
 
 const log = createLogger('login.spec');
 

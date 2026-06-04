@@ -1,7 +1,6 @@
 {
   "name": "advanceplaywrightframework1x",
   "version": "1.0.0",
-  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
@@ -17,8 +16,8 @@
     "test:report": "playwright show-report",
     "test:report:ci": "playwright show-report --host 0.0.0.0 --port 9323",
     "test:allure": "allure generate ./allure-results --clean -o ./allure-report && allure open ./allure-report",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
@@ -30,12 +29,18 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@faker-js/faker": "^10.4.0",
+    "@eslint/js": "^9.39.4",
+    "@faker-js/faker": "^8.4.1",
     "@playwright/test": "^1.60.0",
     "@types/node": "^25.9.1",
     "allure-playwright": "^3.9.0",
     "csv-parse": "^6.2.1",
     "dotenv": "^17.4.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
+    "typescript-eslint": "^8.60.1",
     "winston": "^3.19.0",
     "xlsx": "^0.18.5"
   }

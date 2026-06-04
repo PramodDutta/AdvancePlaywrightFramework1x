@@ -25,8 +25,12 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [Page Objects (BasePage)](#page-objects-basepage)
 - [Test Data Factory (Faker)](#test-data-factory-faker)
 - [Writing Tests — Steps + Logging](#writing-tests--steps--logging)
-- [ESM & Import Extensions](#esm--import-extensions)
+- [Fixtures (Page Object injection)](#fixtures-page-object-injection)
+- [Per-Step Screenshots (visualStep)](#per-step-screenshots-visualstep)
+- [End-to-End Checkout Flow](#end-to-end-checkout-flow)
+- [Module System (CommonJS)](#module-system-commonjs)
 - [Reporting](#reporting)
+- [Custom TTA Report — Visual Flow](#custom-tta-report--visual-flow)
 - [AI Agent Rules](#ai-agent-rules)
 - [Project Rules](#project-rules)
 - [Phase 1 Walkthrough](#phase-1-walkthrough)
@@ -63,18 +67,34 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 AdvancePlaywrightFramework1x/
 ├── src/
 │   ├── api/                   # API clients (REST / GraphQL)
-│   ├── config/                # Env loaders, constants, URLs
+│   ├── config/                # Env loaders + credentials accessor
+│   │   └── credentials.ts     # Login creds sourced from .env
 │   ├── fixtures/              # Playwright custom fixtures
+│   │   └── test-base.ts       # `test` extended with a fixture per Page Object
 │   ├── pages/                 # Page Object Model classes
+│   │   ├── BasePage.ts        # Abstract parent (page, el, log, goto)
+│   │   ├── LoginPage.ts
+│   │   ├── InventoryPage.ts
+│   │   ├── ItemDetailPage.ts
+│   │   ├── CartPage.ts
+│   │   ├── CheckoutStepOnePage.ts
+│   │   ├── CheckoutStepTwoPage.ts
+│   │   ├── CheckoutCompletePage.ts
+│   │   └── index.ts           # Barrel re-exports
 │   ├── testdata/              # CSV / JSON / XLSX test data
 │   ├── tests/                 # Spec files (*.spec.ts)
+│   │   ├── login.spec.ts
+│   │   └── e2e-checkout.spec.ts  # Full login→checkout→complete flow
 │   └── utils/                 # Helpers
 │       ├── logger.ts          # Winston logger (+ createLogger scope)
 │       ├── UtilElementLocator.ts  # Locator action wrapper (Flex type)
 │       ├── DataGenerator.ts   # Faker test-data factory
+│       ├── visualStep.ts      # test.step + per-step screenshot
 │       └── CustomReporter.ts  # TTA HTML reporter
 │
 ├── docs/
+│   ├── images/                # README screenshots
+│   ├── ttacart-pom-creator/   # Skill: live-page → Page Object generator
 │   └── phase1/
 │       └── prompts.md         # Phase 1 conversation log
 │
@@ -194,8 +214,8 @@ Defined in `tsconfig.json`:
 
 Example:
 ```ts
-import logger from '@utils/logger.js';
-import { LoginPage } from '@pages/LoginPage.js';
+import logger from '@utils/logger';
+import { LoginPage } from '@pages/LoginPage';
 import { users } from '@testdata/users.json';
 ```
 
@@ -248,7 +268,7 @@ npx playwright test --grep-invert "@flaky"
 ## Logging (Winston)
 
 ```ts
-import logger from '@utils/logger.js';
+import logger from '@utils/logger';
 
 logger.info('login start', { user: 'pramod' });
 logger.warn('slow API response', { ms: 3200 });
@@ -264,7 +284,7 @@ Output:
 Scoped child loggers tag every line with their origin:
 
 ```ts
-import { createLogger } from '@utils/logger.js';
+import { createLogger } from '@utils/logger';
 
 const log = createLogger('LoginPage');
 log.info('loginAs standard_user');
@@ -295,7 +315,7 @@ flowchart TD
 ```
 
 ```ts
-import { UtilElementLocator } from '@utils/UtilElementLocator.js';
+import { UtilElementLocator } from '@utils/UtilElementLocator';
 
 const el = new UtilElementLocator(page, 'LoginPage');
 await el.fill('[data-test="username"]', 'standard_user');
@@ -332,7 +352,7 @@ classDiagram
 ```
 
 ```ts
-import { BasePage } from './BasePage.js';
+import { BasePage } from './BasePage';
 
 export class LoginPage extends BasePage {
     static readonly PATH = '/playwright/ttacart/index.html';
@@ -359,7 +379,7 @@ export class LoginPage extends BasePage {
 **Q&A — why use this?**
 - **Q: Why static methods?** A: No state to hold — call `DataGenerator.credentials()` without `new`.
 - **Q: What's `checkoutCustomer()` for?** A: The TTACart checkout step-one form needs `firstName`, `lastName`, `postalCode` — one call returns all three.
-- **Q: Faker v10 gotcha?** A: It's ESM-only and renamed APIs — use `faker.internet.username()` (not `userName`) and `faker.location.zipCode()` (not `address.zipCode`).
+- **Q: Which Faker version?** A: Pinned to **v8** (`@faker-js/faker@^8.4.1`) because it ships a CommonJS build — v9/v10 are ESM-only. v8 API: `faker.internet.userName()` (lowercase `username()` is v9+) and `faker.location.zipCode()` (v8 renamed `address` → `location`).
 
 ```mermaid
 mindmap
@@ -378,7 +398,7 @@ mindmap
 ```
 
 ```ts
-import { DataGenerator } from '@utils/DataGenerator.js';
+import { DataGenerator } from '@utils/DataGenerator';
 
 const { username, password } = DataGenerator.credentials();
 const customer = DataGenerator.checkoutCustomer();
@@ -411,8 +431,8 @@ sequenceDiagram
 
 ```ts
 import { test, expect } from '@playwright/test';
-import { LoginPage } from '@pages/LoginPage.js';
-import { createLogger } from '@utils/logger.js';
+import { LoginPage } from '@pages/LoginPage';
+import { createLogger } from '@utils/logger';
 
 const log = createLogger('login.spec');
 
@@ -434,21 +454,109 @@ test('logs in with valid credentials @p0', async ({ page }) => {
 
 ---
 
-## ESM & Import Extensions
+## Fixtures (Page Object injection)
 
-**Concept:** The project is native ESM (`"type": "module"` + `module: Node16`). Relative and path-alias imports MUST carry an explicit `.js` extension — even though the source is `.ts`.
+**Concept:** `src/fixtures/test-base.ts` extends Playwright's `test` so every Page Object is available as a fixture. Ask for `cartPage` in the test args and it's handed over already constructed against the test's `page`.
 
-**Why:** `@faker-js/faker` v10 is ESM-only, forcing the whole project to ESM. Node ESM resolution does not guess extensions or `index.js`.
+**Why:** Removes `new XPage(page)` boilerplate from every spec and gives each test a fresh, isolated instance.
 
 **Q&A — why use this?**
-- **Q: Why `.js` when the file is `.ts`?** A: TypeScript compiles `BasePage.ts` → `BasePage.js`; at runtime only `.js` exists, so imports target the emitted name.
-- **Q: Do package imports need `.js`?** A: No — only relative/alias file imports (`./BasePage.js`, `@utils/logger.js`). `@playwright/test` and `@faker-js/faker` stay bare.
-- **Q: Barrel file `index.ts` too?** A: Yes — every re-export inside a barrel needs `.js` as well.
+- **Q: Why not just `new LoginPage(page)`?** A: You can — but the fixture centralises construction so a constructor change touches one file, not every spec.
+- **Q: Are pages opened for me?** A: No — fixtures hand over *constructed* (not *opened*) objects. Flows reach pages in different orders, so each spec calls `.open()` itself.
+- **Q: What about credentials?** A: They come from `@config/credentials`, which reads `.env` (see [Environment Configuration](#environment-configuration)).
 
 ```ts
-import { BasePage } from './BasePage.js';          // ✅ relative + .js
-import { LoginPage } from '@pages/LoginPage.js';     // ✅ alias + .js
-import { test } from '@playwright/test';             // ✅ package, no extension
+import { test, expect } from '@fixtures/test-base';
+
+test('add to cart', async ({ inventoryPage, cartPage }) => {
+    await inventoryPage.open();
+    await inventoryPage.addToCart('tta-bike-light');
+    await cartPage.open();
+    expect(await cartPage.rowCount()).toBe(1);
+});
+```
+
+---
+
+## Per-Step Screenshots (visualStep)
+
+**Concept:** `visualStep(page, title, fn)` wraps `test.step`, runs the step, then grabs a screenshot and attaches it as `step-<index>-<slug>` — the exact name the `CustomReporter` maps back to that step. Result: one image per step in the HTML report.
+
+**Why:** Playwright's built-in `screenshot: 'only-on-failure'` captures a single frame at the failure point. `visualStep` gives a visual trail of *every* step, pass or fail — great for demos and debugging.
+
+**Q&A — why use this?**
+- **Q: How does the reporter know which screenshot belongs to which step?** A: By the attachment name `step-N-...`; the steps run sequentially so `N` matches the reporter's own step index.
+- **Q: Does it slow tests down?** A: A little — one screenshot per step. Use it on showcase/e2e specs, not every micro-test.
+- **Q: When is the shot taken?** A: At the *end* of the step, so it shows the resulting state.
+
+```ts
+import { visualStep } from '@utils/visualStep';
+
+await visualStep(page, 'Open the cart', async () => {
+    await cartPage.open();
+    expect(await cartPage.rowCount()).toBe(1);
+});
+```
+
+---
+
+## End-to-End Checkout Flow
+
+**Concept:** `src/tests/e2e-checkout.spec.ts` is the flagship test — log in → inventory → add item → cart → checkout step one → step two → order complete, each as a logged, screenshotted step driven entirely through Page Objects.
+
+**Why:** Proves the whole stack (fixtures + Page Objects + DataGenerator + logger + reporter) works together against the live TTACart app.
+
+**Q&A — why use this?**
+- **Q: Where do the customer details come from?** A: `DataGenerator.checkoutCustomer()` — random first/last name + postal code per run.
+- **Q: How is "order complete" verified?** A: `CheckoutCompletePage.assertOrderComplete()` checks the URL and the "Thank you for your order!" header.
+- **Q: Why `@P0 @Regression` in the describe title?** A: Tags drive filtered runs (`npm run test:p0`) and show up as labels in the Allure report.
+
+```mermaid
+flowchart LR
+    L[Login] --> I[Inventory] --> A[Add item] --> C[Cart]
+    C --> S1[Checkout step 1<br/>guest details]
+    S1 --> S2[Checkout step 2<br/>overview]
+    S2 --> D[Order complete ✅]
+```
+
+```ts
+test('should complete checkout successfully', async ({
+    inventoryPage, cartPage, checkoutStepOnePage, checkoutStepTwoPage, checkoutCompletePage, page,
+}) => {
+    const customer = DataGenerator.checkoutCustomer();
+    await visualStep(page, 'Go to the inventory page', async () => inventoryPage.open());
+    await visualStep(page, 'Add one item to the cart', async () => inventoryPage.addToCart(FIRST_ITEM_ID));
+    await visualStep(page, 'Open the cart', async () => {
+        await cartPage.open();
+        expect(await cartPage.rowCount()).toBe(1);
+    });
+    await visualStep(page, 'Fill guest details (checkout step one)', async () => {
+        await cartPage.checkout();
+        await checkoutStepOnePage.fillGuest(customer);
+        await checkoutStepOnePage.continue();
+    });
+    await visualStep(page, 'Finish the order (checkout step two)', async () => checkoutStepTwoPage.finish());
+    await visualStep(page, 'Order is complete', async () => checkoutCompletePage.assertOrderComplete());
+});
+```
+
+---
+
+## Module System (CommonJS)
+
+**Concept:** The project is plain **CommonJS** — no `"type": "module"`, with tsconfig `module: Node16` / `moduleResolution: Node16`. Relative and path-alias imports are **extensionless**, the way most TS projects read.
+
+**Why:** Faker is pinned to v8 (which has a CommonJS build), so nothing forces the project to ESM. CommonJS keeps imports clean — no `.js` suffix gymnastics.
+
+**Q&A — why this setup?**
+- **Q: Do I add `.js` to imports?** A: No. `import { BasePage } from './BasePage'` — extensionless. (Under CommonJS, Node16 resolution adds the extension for you.)
+- **Q: Why keep `moduleResolution: Node16` instead of classic `node`?** A: Node16 reads package `exports` maps (needed for modern deps) and isn't deprecated in TypeScript 6+; classic `node` is.
+- **Q: What made this CommonJS rather than ESM?** A: Faker version. v8 = dual CJS/ESM → CommonJS works. v9/v10 are ESM-only and would force `"type": "module"` + `.js` extensions everywhere.
+
+```ts
+import { BasePage } from './BasePage';            // ✅ relative, no extension
+import { LoginPage } from '@pages/LoginPage';      // ✅ alias, no extension
+import { test } from '@playwright/test';           // ✅ package
 ```
 
 ---
@@ -462,6 +570,35 @@ import { test } from '@playwright/test';             // ✅ package, no extensio
 | JSON | `test-results/results.json` | auto |
 | Allure | `allure-results/` → `allure-report/` | `npm run test:allure` |
 | List (console) | stdout | auto |
+
+**Artifacts captured** (configured in `playwright.config.ts`):
+
+| Artifact | Setting | When |
+|----------|---------|------|
+| Screenshot (failure) | `screenshot: 'only-on-failure'` | on any failure |
+| Per-step screenshots | `visualStep()` helper | every step (see [visualStep](#per-step-screenshots-visualstep)) |
+| Video | `video: 'on'` | **always** recorded |
+| Trace | `trace: 'on-first-retry'` | on retry |
+
+Allure is enriched with `environmentInfo` (env, baseURL, Node, OS, CI) and failure `categories`.
+
+---
+
+## Custom TTA Report — Visual Flow
+
+The custom `CustomReporter.ts` produces a branded, real-time HTML report at
+`tta-report/report_<timestamp>.html`. For the end-to-end checkout test it shows
+the **whole journey** — every step with its console log, its own screenshot, and
+the run video.
+
+**Overview** — stats dashboard, environment bar, and the filterable test table:
+
+![TTA report overview](docs/images/tta-report-overview.png)
+
+**End-to-end flow** — expand the test row: each of the 6 steps shows its log
+line and a screenshot, followed by the screenshots gallery and the run video:
+
+![TTA report — e2e checkout flow](docs/images/tta-report-e2e-flow.png)
 
 ---
 

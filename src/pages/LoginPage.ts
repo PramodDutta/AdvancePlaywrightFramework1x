@@ -1,5 +1,5 @@
-import { expect, Locator, Page } from '@playwright/test';
-import { BasePage } from './BasePage.js';
+import { Locator, Page } from '@playwright/test';
+import { BasePage } from './BasePage';
 
 /**
  * TTACart login screen.
@@ -13,7 +13,7 @@ import { BasePage } from './BasePage.js';
 
 export class LoginPage extends BasePage {
 
-    static readonly PATH = 'https://app.thetestingacademy.com/playwright/ttacart/index.html';
+    static readonly PATH = '/playwright/ttacart/index.html';
 
     private readonly usernameInput: Locator;
     private readonly passwordInput: Locator;
