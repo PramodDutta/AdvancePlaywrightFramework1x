@@ -45,6 +45,7 @@ interface TestData {
     retry: number;
     screenshots: { name: string; path: string }[];
     steps: StepData[];
+    logs: string[];
     video?: string;
     trace?: string;
     error?: string;
@@ -141,6 +142,7 @@ class CustomTTAReporter implements Reporter {
             retry: 0,
             screenshots: [],
             steps: [],
+            logs: [],
             tags: test.tags || [],
         });
 
@@ -223,7 +225,8 @@ class CustomTTAReporter implements Reporter {
         console.log(`\n   📊 Running Total: ✅ ${this.suiteStats.passed} | ❌ ${this.suiteStats.failed} | ⏭️ ${this.suiteStats.skipped}`);
 
         const currentTestSteps = this.testStepsMap.get(test.id) || [];
-        this.associateLogsWithSteps(test, result, currentTestSteps);
+        const testLogs = this.collectTestLogs(result);
+        this.associateLogsWithSteps(test, result, currentTestSteps, testLogs);
 
         const screenshots: { name: string; path: string }[] = [];
         const stepScreenshots: Map<string, string> = new Map();
@@ -334,6 +337,7 @@ class CustomTTAReporter implements Reporter {
             retry: result.retry,
             screenshots: screenshots,
             steps: [...currentTestSteps],
+            logs: testLogs,
             video: videoPath,
             trace: tracePath,
             error: result.error?.message,
@@ -453,7 +457,32 @@ class CustomTTAReporter implements Reporter {
         return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
     }
 
-    private associateLogsWithSteps(_test: TestCase, result: TestResult, testSteps: StepData[]): void {
+    private collectTestLogs(result: TestResult): string[] {
+        const allLogs: string[] = [];
+
+        const appendChunks = (chunks: (string | Buffer)[], prefix = ''): void => {
+            for (const chunk of chunks) {
+                const text = typeof chunk === 'string' ? chunk : chunk.toString();
+                allLogs.push(...text
+                    .split('\n')
+                    .map(line => this.stripAnsi(line).trim())
+                    .filter(Boolean)
+                    .map(line => `${prefix}${line}`));
+            }
+        };
+
+        appendChunks(result.stdout || []);
+        appendChunks(result.stderr || [], '[stderr] ');
+
+        return allLogs;
+    }
+
+    private stripAnsi(value: string): string {
+        const escapeCharacter = String.fromCharCode(27);
+        return value.replace(new RegExp(`${escapeCharacter}\\[[0-?]*[ -/]*[@-~]`, 'g'), '');
+    }
+
+    private associateLogsWithSteps(_test: TestCase, result: TestResult, testSteps: StepData[], allLogs: string[]): void {
         if (testSteps.length === 0) {
             return;
         }
@@ -491,28 +520,6 @@ class CustomTTAReporter implements Reporter {
                         }
                     }
                 }
-            }
-        }
-
-        // Collect all stdout output (this contains console.log from test code)
-        const stdout = result.stdout || [];
-        const allLogs: string[] = [];
-
-        for (const chunk of stdout) {
-            if (typeof chunk === 'string') {
-                allLogs.push(...chunk.split('\n').filter(line => line.trim()));
-            } else if (Buffer.isBuffer(chunk)) {
-                allLogs.push(...chunk.toString().split('\n').filter(line => line.trim()));
-            }
-        }
-
-        // Also collect stderr for error logs
-        const stderr = result.stderr || [];
-        for (const chunk of stderr) {
-            if (typeof chunk === 'string') {
-                allLogs.push(...chunk.split('\n').filter(line => line.trim()).map(line => `[stderr] ${line}`));
-            } else if (Buffer.isBuffer(chunk)) {
-                allLogs.push(...chunk.toString().split('\n').filter(line => line.trim()).map(line => `[stderr] ${line}`));
             }
         }
 
@@ -883,6 +890,25 @@ class CustomTTAReporter implements Reporter {
                     <div class="error-box">
                         <pre class="error-message">${this.escapeHtml(test.error)}</pre>
                         ${test.errorStack ? `<details class="stack-details"><summary>Call Stack</summary><pre class="stack-trace-content">${this.escapeHtml(test.errorStack)}</pre></details>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        if (test.logs.length > 0) {
+            html += `
+            <div class="detail-section logs-section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-arrow">▼</span> Test Logs (${test.logs.length} lines)
+                </div>
+                <div class="section-content">
+                    <div class="step-console-content">`;
+
+            for (const log of test.logs) {
+                html += `<div class="console-line">${this.escapeHtml(log)}</div>`;
+            }
+
+            html += `
                     </div>
                 </div>
             </div>`;

@@ -19,6 +19,7 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [NPM Scripts](#npm-scripts)
 - [Path Aliases](#path-aliases)
 - [Environment Configuration](#environment-configuration)
+- [API Testing](#api-testing)
 - [Test Tags & Filtering](#test-tags--filtering)
 - [Logging (Winston)](#logging-winston)
 - [Element Utilities (UtilElementLocator)](#element-utilities-utilelementlocator)
@@ -46,6 +47,7 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - **Page Object Model** under `src/pages/`
 - **Custom Fixtures** under `src/fixtures/`
 - **API client layer** under `src/api/` (REST + GraphQL ready)
+- **Dedicated API project** for `src/tests/apiTests/**`, so API specs run once without browser projects
 - **Multi-env config** via `dotenv` — qa, stg, prod, dev
 - **Data-driven testing** — CSV (`csv-parse`), JSON, XLSX (`xlsx`)
 - **Test data factories** with `@faker-js/faker`
@@ -83,6 +85,7 @@ AdvancePlaywrightFramework1x/
 │   │   └── index.ts           # Barrel re-exports
 │   ├── testdata/              # CSV / JSON / XLSX test data
 │   ├── tests/                 # Spec files (*.spec.ts)
+│   │   ├── apiTests/          # API specs, run with the `api` Playwright project
 │   │   ├── login.spec.ts
 │   │   └── e2e-checkout.spec.ts  # Full login→checkout→complete flow
 │   └── utils/                 # Helpers
@@ -160,6 +163,7 @@ npx playwright install --with-deps
 
 ```bash
 npm test                  # all tests, all projects
+npx playwright test src/tests/apiTests/crud.spec.ts --project=api
 npm run test:chromium     # chromium only
 npm run test:ui           # UI mode (debug-friendly)
 npm run test:p0           # smoke / critical only
@@ -234,9 +238,59 @@ QA_BASE_URL=https://app.thetestingacademy.com
 STG_BASE_URL=https://stage.thetestingacademy.com
 PROD_BASE_URL=https://app.thetestingacademy.com
 DEV_BASE_URL=http://localhost:3000
+API_BASE_URL=https://restful-booker.herokuapp.com
 LOG_LEVEL=info            # winston log level
 TEST_ENV=UAT              # shown in TTA report
 TEST_AUTHOR=Pramod
+```
+
+---
+
+## API Testing
+
+API specs live under `src/tests/apiTests/` and run through the dedicated
+Playwright `api` project:
+
+```ts
+{
+  name: 'api',
+  testMatch: /src\/tests\/apiTests\/.*\.spec\.ts/,
+}
+```
+
+Browser projects ignore API specs, so request-only tests are not duplicated
+across Chromium, Firefox, WebKit, or mobile browser projects.
+
+```bash
+API_BASE_URL=https://restful-booker.herokuapp.com \
+BASE_URL=https://restful-booker.herokuapp.com \
+npx playwright test src/tests/apiTests/crud.spec.ts --project=api
+```
+
+For multi-step API flows, use `test.describe.serial` and a typed state object to
+pass values like auth tokens and booking IDs between tests:
+
+```ts
+interface BookingFlowState {
+    token?: string;
+    bookingId?: number;
+}
+
+test.describe.serial('Restful Booker CRUD API', () => {
+    const bookingFlowState: BookingFlowState = {};
+
+    test('TC#1 @p0 - Create token', async ({ request }) => {
+        // set bookingFlowState.token
+    });
+
+    test('TC#2 @p0 - Create booking', async ({ request }) => {
+        // set bookingFlowState.bookingId
+    });
+
+    test('TC#3 @p0 - Update booking', async ({ request }) => {
+        // use bookingFlowState.token and bookingFlowState.bookingId
+    });
+});
 ```
 
 Switch env:
@@ -411,10 +465,10 @@ const customer = DataGenerator.checkoutCustomer();
 
 **Concept:** Wrap each logical action in `test.step('label', async () => {…})` and emit a scoped logger line inside it. The custom TTA reporter surfaces both — step titles **and** their console output.
 
-**Why:** Plain Page-Object calls don't appear as steps in the report. `CustomReporter` only records `step.category === 'test.step'`, and pipes test stdout into each step's console block.
+**Why:** Plain Page-Object calls don't appear as steps in the report. `CustomReporter` records `step.category === 'test.step'`, keeps test-level logs in the expanded test panel, and pipes test stdout into each step's console block when steps are present.
 
 **Q&A — why use this?**
-- **Q: Why does the report show empty steps without this?** A: Without `test.step()`, there are no `test.step` categories for the reporter to capture.
+- **Q: Why does the report show no step breakdown without this?** A: Without `test.step()`, logs still appear under **Test Logs**, but there are no `test.step` categories for the reporter to render as individual steps.
 - **Q: Where do per-step logs come from?** A: `associateLogsWithSteps` matches test stdout (your `log.info(...)`) to steps by title and order.
 - **Q: Do I still get the assertion?** A: Yes — `expect()` lives inside its own step, so a failure pins to that step.
 
@@ -570,6 +624,12 @@ import { test } from '@playwright/test';           // ✅ package
 | JSON | `test-results/results.json` | auto |
 | Allure | `allure-results/` → `allure-report/` | `npm run test:allure` |
 | List (console) | stdout | auto |
+
+The Custom TTA reporter captures test stdout/stderr from `logger.info(...)` and
+renders it in each expanded test under **Test Logs**. When a spec uses
+`test.step(...)`, the same logs are also distributed into the matching step
+details, so API and UI flows show both the action title and the relevant log
+line in the report.
 
 **Artifacts captured** (configured in `playwright.config.ts`):
 
