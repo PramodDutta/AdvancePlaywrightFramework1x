@@ -248,6 +248,19 @@ TEST_AUTHOR=Pramod
 
 ## API Testing
 
+API coverage targets Restful Booker by default and runs through Playwright's
+`APIRequestContext`, not a browser page. Set `TTA_ENV=api` to resolve
+`baseURL` from `API_BASE_URL`:
+
+```bash
+TTA_ENV=api npm test -- --project=api
+npx playwright test src/tests/apiTests/02_restfulbooker_apiHelper/create-booking.spec.ts --project=api
+```
+
+![TTA custom report overview for API and UI runs](docs/images/tta-report-overview.png)
+
+### Dedicated API Project
+
 API specs live under `src/tests/apiTests/` and run through the dedicated
 Playwright `api` project:
 
@@ -261,10 +274,42 @@ Playwright `api` project:
 Browser projects ignore API specs, so request-only tests are not duplicated
 across Chromium, Firefox, WebKit, or mobile browser projects.
 
+### API Learning Layers
+
+The API examples are split into layers so the same Restful Booker workflow can
+grow from direct Playwright calls into reusable framework code:
+
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| Raw Playwright requests | `src/tests/apiTests/01_restfulbooker_raw/` | Uses the built-in `request` fixture directly for `GET`, `POST`, `PUT`, auth token, and CRUD examples. |
+| Shared API helper | `src/tests/apiTests/02_restfulbooker_apiHelper/` + `src/utils/ApiHelper.ts` | Wraps `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, query params, retry polling, typed JSON parsing, and status helpers. |
+| Typed API client layer | `src/api/` + `src/tests/apiTests/03_restfulbooker_fixture_e2e/` | Home for endpoint-specific clients such as `BookingApi`, plus payload/response models and reusable flow verification as the API framework grows. |
+
+Helper-based tests should prefer aliases and framework utilities:
+
+```ts
+import { expect, test } from '@playwright/test';
+import { ApiHelper } from '@utils/ApiHelper';
+
+test('POST /booking creates a booking @p0', async ({ request }) => {
+    const api = new ApiHelper(request);
+    const response = await api.post('/booking', {
+        firstname: 'Pramod',
+        lastname: 'Dutta',
+        totalprice: 111,
+        depositpaid: true,
+        bookingdates: { checkin: '2026-04-01', checkout: '2026-04-10' },
+        additionalneeds: 'Breakfast',
+    });
+
+    expect(api.isSuccess(response)).toBe(true);
+});
+```
+
 ```bash
 API_BASE_URL=https://restful-booker.herokuapp.com \
 BASE_URL=https://restful-booker.herokuapp.com \
-npx playwright test src/tests/apiTests/crud.spec.ts --project=api
+npx playwright test src/tests/apiTests/01_restfulbooker_raw/crud.spec.ts --project=api
 ```
 
 For multi-step API flows, use `test.describe.serial` and a typed state object to
