@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://restful-booker.herokuapp.com/schemas/create-booking.json",
+  "title": "CreateBookingResponse",
+  "description": "Response shape of POST /booking on Restful Booker.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bookingid", "booking"],
+  "properties": {
+    "bookingid": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "booking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "firstname",
+        "lastname",
+        "totalprice",
+        "depositpaid",
+        "bookingdates"
+      ],
+      "properties": {
+        "firstname": { "type": "string", "minLength": 1 },
+        "lastname": { "type": "string", "minLength": 1 },
+        "totalprice": { "type": "number", "minimum": 0 },
+        "depositpaid": { "type": "boolean" },
+        "bookingdates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checkin", "checkout"],
+          "properties": {
+            "checkin": { "type": "string", "format": "date" },
+            "checkout": { "type": "string", "format": "date" }
+          }
+        },
+        "additionalneeds": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "store": {
+    "name": "The Testing Academy Bookstore",
+    "city": "Bengaluru",
+    "book": [
+      {
+        "category": "reference",
+        "author": "Nigel Rees",
+        "title": "Sayings of the Century",
+        "price": 8.95,
+        "inStock": true,
+        "tags": ["quotes", "wisdom"]
+      },
+      {
+        "category": "fiction",
+        "author": "Evelyn Waugh",
+        "title": "Sword of Honour",
+        "price": 12.99,
+        "inStock": false,
+        "tags": ["war", "classic"]
+      },
+      {
+        "category": "fiction",
+        "author": "Herman Melville",
+        "title": "Moby Dick",
+        "isbn": "0-553-21311-3",
+        "price": 8.99,
+        "inStock": true,
+        "tags": ["sea", "classic", "adventure"]
+      },
+      {
+        "category": "fiction",
+        "author": "J. R. R. Tolkien",
+        "title": "The Lord of the Rings",
+        "isbn": "0-395-19395-8",
+        "price": 22.99,
+        "inStock": true,
+        "tags": ["fantasy", "epic", "adventure"]
+      },
+      {
+        "category": "tech",
+        "author": "Pramod Dutta",
+        "title": "Mastering Playwright",
+        "isbn": "978-1-23456-789-0",
+        "price": 34.5,
+        "inStock": true,
+        "tags": ["automation", "testing", "playwright"]
+      }
+    ],
+    "bicycle": {
+      "color": "red",
+      "price": 19.95,
+      "available": true
+    },
+    "electronics": [
+      { "type": "laptop", "brand": "Dell", "price": 899.0, "specs": { "ram": "16GB", "cpu": "i7" } },
+      { "type": "phone", "brand": "Pixel", "price": 599.0, "specs": { "ram": "8GB", "cpu": "Tensor" } },
+      { "type": "tablet", "brand": "iPad", "price": 499.0, "specs": { "ram": "8GB", "cpu": "M2" } }
+    ]
+  },
+  "employees": [
+    {
+      "id": 1,
+      "name": "Asha",
+      "role": "SDET",
+      "salary": 95000,
+      "skills": ["playwright", "typescript", "api"],
+      "address": { "city": "Bengaluru", "country": "India" }
+    },
+    {
+      "id": 2,
+      "name": "Ravi",
+      "role": "Manager",
+      "salary": 130000,
+      "skills": ["leadership", "strategy"],
+      "address": { "city": "Hyderabad", "country": "India" }
+    },
+    {
+      "id": 3,
+      "name": "Meera",
+      "role": "SDET",
+      "salary": 88000,
+      "skills": ["selenium", "java", "api"],
+      "address": { "city": "Pune", "country": "India" }
+    }
+  ],
+  "company": {
+    "name": "TTA Labs",
+    "departments": {
+      "engineering": {
+        "lead": "Ravi",
+        "teams": {
+          "qa": { "headcount": 12, "tools": ["playwright", "allure"] },
+          "platform": { "headcount": 7, "tools": ["k8s", "terraform"] }
+        }
+      },
+      "sales": {
+        "lead": "Kiran",
+        "teams": {
+          "domestic": { "headcount": 5, "tools": ["crm"] }
+        }
+      }
+    }
+  },
+  "expensiveThreshold": 10
+}

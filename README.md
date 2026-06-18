@@ -20,6 +20,8 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [Path Aliases](#path-aliases)
 - [Environment Configuration](#environment-configuration)
 - [API Testing](#api-testing)
+- [JSONPath Queries (jsonpath-plus)](#jsonpath-queries-jsonpath-plus)
+- [JSON Schema Validation (Ajv)](#json-schema-validation-ajv)
 - [Test Tags & Filtering](#test-tags--filtering)
 - [Logging (Winston)](#logging-winston)
 - [Element Utilities (UtilElementLocator)](#element-utilities-utilelementlocator)
@@ -84,14 +86,22 @@ AdvancePlaywrightFramework1x/
 │   │   ├── CheckoutCompletePage.ts
 │   │   └── index.ts           # Barrel re-exports
 │   ├── testdata/              # CSV / JSON / XLSX test data
+│   │   ├── booking.data.ts    # Booking payload factory
+│   │   └── schemas/           # JSON Schema (Draft-07) for Ajv validation
 │   ├── tests/                 # Spec files (*.spec.ts)
 │   │   ├── apiTests/          # API specs, run with the `api` Playwright project
-│   │   ├── login.spec.ts
-│   │   └── e2e-checkout.spec.ts  # Full login→checkout→complete flow
+│   │   │   ├── 01_restfulbooker_raw/        # raw request fixture
+│   │   │   ├── 02_restfulbooker_apiHelper/  # ApiHelper wrapper
+│   │   │   ├── 03_restfulbooker_fixture_e2e/# BookingApi client + fixtures
+│   │   │   ├── 04_jsonpath_plus/            # JSONPath queries + cheat sheet
+│   │   │   └── 05_ajv_schema/               # Ajv schema validation
+│   │   └── e2e/               # Full login→checkout→complete flow
 │   └── utils/                 # Helpers
 │       ├── logger.ts          # Winston logger (+ createLogger scope)
 │       ├── UtilElementLocator.ts  # Locator action wrapper (Flex type)
 │       ├── DataGenerator.ts   # Faker test-data factory
+│       ├── ApiHelper.ts       # HTTP wrapper (GET/POST/PUT/PATCH/DELETE + retry)
+│       ├── schemaValidator.ts # Ajv + ajv-formats schema validation
 │       ├── visualStep.ts      # test.step + per-step screenshot
 │       └── CustomReporter.ts  # TTA HTML reporter
 │
@@ -163,7 +173,7 @@ npx playwright install --with-deps
 
 ```bash
 npm test                  # all tests, all projects
-npx playwright test src/tests/apiTests/crud.spec.ts --project=api
+npx playwright test src/tests/apiTests/01_restfulbooker_raw/crud.spec.ts --project=api
 npm run test:chromium     # chromium only
 npm run test:ui           # UI mode (debug-friendly)
 npm run test:p0           # smoke / critical only
@@ -284,6 +294,8 @@ grow from direct Playwright calls into reusable framework code:
 | Raw Playwright requests | `src/tests/apiTests/01_restfulbooker_raw/` | Uses the built-in `request` fixture directly for `GET`, `POST`, `PUT`, auth token, and CRUD examples. |
 | Shared API helper | `src/tests/apiTests/02_restfulbooker_apiHelper/` + `src/utils/ApiHelper.ts` | Wraps `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, query params, retry polling, typed JSON parsing, and status helpers. |
 | Typed API client layer | `src/api/` + `src/tests/apiTests/03_restfulbooker_fixture_e2e/` | Home for endpoint-specific clients such as `BookingApi`, plus payload/response models and reusable flow verification as the API framework grows. |
+| JSONPath response queries | `src/tests/apiTests/04_jsonpath_plus/` | Query JSON responses with `jsonpath-plus` — root, child, recursive descent, wildcard, index, slice, and filtration. Ships a [cheat sheet](src/tests/apiTests/04_jsonpath_plus/jsonpath-cheatsheet.md). |
+| JSON Schema validation | `src/tests/apiTests/05_ajv_schema/` + `src/utils/schemaValidator.ts` + `src/testdata/schemas/` | Contract-test responses against Draft-07 JSON Schema with `ajv` + `ajv-formats`. |
 
 Helper-based tests should prefer aliases and framework utilities:
 
@@ -342,6 +354,77 @@ Switch env:
 ```bash
 TTA_ENV=stg npm test
 ```
+
+---
+
+## JSONPath Queries (jsonpath-plus)
+
+**Concept:** [`jsonpath-plus`](https://github.com/JSONPath-Plus/JSONPath) lets you pull values out of a JSON document with a single path expression instead of manual `obj.a.b[0].c` chaining. Every query returns an **array of matches**.
+
+**Why:** API responses are nested and array-heavy. One expression like `$.store.book[?(@.price < 10)]` replaces a loop-and-filter block and reads like a question.
+
+**Q&A — why use this?**
+- **Q: What's the difference between `.` and `..`?** A: `.child` is a direct child; `..child` (recursive descent) finds the key at **any** depth.
+- **Q: How do I filter?** A: `[?(@.field <op> value)]` where `@` is the current element, e.g. `[?(@.category === 'fiction')]`.
+- **Q: Does it ever return a single value?** A: By default no — always an array (take `[0]`), unless you pass `{ wrap: false }`.
+
+```mermaid
+flowchart TD
+    R["$ root"] --> C["$.store.book child"]
+    C --> RD["$..price recursive descent"]
+    C --> W["$.store.book[*] wildcard"]
+    C --> IDX["$.store.book[0] index"]
+    C --> SL["$.store.book[0:2] slice"]
+    C --> F["$.store.book[?(@.price < 10)] filter"]
+```
+
+```ts
+import { JSONPath } from 'jsonpath-plus';
+
+const cheap = JSONPath({ path: '$.store.book[?(@.price < 10)]', json: data });
+const authors = JSONPath({ path: '$.store.book[*].author', json: data });
+const allPrices = JSONPath({ path: '$..price', json: data }); // any depth
+const lastBook = JSONPath({ path: '$.store.book[-1:]', json: data })[0];
+```
+
+Full operator reference: [`jsonpath-cheatsheet.md`](src/tests/apiTests/04_jsonpath_plus/jsonpath-cheatsheet.md). Runnable demo: [`jsonpath-queries.e2e.spec.ts`](src/tests/apiTests/04_jsonpath_plus/jsonpath-queries.e2e.spec.ts).
+
+---
+
+## JSON Schema Validation (Ajv)
+
+**Concept:** Validate an API response against a **Draft-07 JSON Schema** with [`ajv`](https://ajv.js.org) + `ajv-formats`. `validateSchema(schema, data)` returns `{ valid, errors, errorText }` so a single `expect` covers the entire response shape.
+
+**Why:** Field-by-field `expect` assertions miss added/removed/retyped fields. A schema is one contract check that catches structural drift — and `additionalProperties: false` flags unexpected keys.
+
+**Q&A — why use this?**
+- **Q: Why `ajv-formats`?** A: It enforces `format` keywords like `"date"`, `"email"`, `"uri"` — without it those formats are ignored.
+- **Q: Where do schemas live?** A: `src/testdata/schemas/*.schema.json`, loaded in specs via `fs.readFileSync`.
+- **Q: Why is the project on `ajv@8`?** A: `ajv-formats@3` requires Ajv v8; the repo pins `ajv@^8` directly (eslint keeps its own v6 nested).
+
+```mermaid
+flowchart LR
+    S[*.schema.json] --> V["validateSchema&#40;schema, body&#41;"]
+    B[API response] --> V
+    V -->|valid| P[expect valid toBe true]
+    V -->|invalid| E[errorText → failing assertion]
+```
+
+```ts
+import { validateSchema } from '@utils/schemaValidator';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const schema = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '../../../testdata/schemas/create-booking.schema.json'), 'utf-8'),
+);
+
+const body = await bookingApi.createBooking(buildBooking({ firstname: 'Schema' }));
+const { valid, errorText } = validateSchema(schema, body);
+expect(valid, errorText).toBe(true);
+```
+
+Runnable demo: [`create-booking-schema.spec.ts`](src/tests/apiTests/05_ajv_schema/create-booking-schema.spec.ts).
 
 ---
 

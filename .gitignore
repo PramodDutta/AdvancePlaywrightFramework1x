@@ -38,3 +38,9 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# Playwright MCP browser-session artifacts
+.playwright-mcp/
+
+# Caveman memory backups
+*.original.md
