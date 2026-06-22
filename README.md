@@ -20,6 +20,7 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [Path Aliases](#path-aliases)
 - [Environment Configuration](#environment-configuration)
 - [API Testing](#api-testing)
+- [Cucumber BDD (Playwright)](#cucumber-bdd-playwright)
 - [JSONPath Queries (jsonpath-plus)](#jsonpath-queries-jsonpath-plus)
 - [JSON Schema Validation (Ajv)](#json-schema-validation-ajv)
 - [Test Tags & Filtering](#test-tags--filtering)
@@ -204,6 +205,9 @@ npm run test:allure       # Allure HTML
 | `test:report` | Open Playwright HTML report |
 | `test:report:ci` | Serve report on `0.0.0.0:9323` for CI |
 | `test:allure` | Generate + open Allure HTML |
+| `cucumber` | Run all Cucumber BDD scenarios (all levels) |
+| `cucumber:level0` / `cucumber:level1` / `cucumber:level2` | Run a single Cucumber level |
+| `cucumber:headed` | Run Cucumber with the browser visible (`HEADED=1`) |
 | `lint` / `lint:fix` | ESLint check / fix |
 | `typecheck` | `tsc --noEmit` |
 | `format` / `format:check` | Prettier |
@@ -354,6 +358,50 @@ Switch env:
 ```bash
 TTA_ENV=stg npm test
 ```
+
+---
+
+## Cucumber BDD (Playwright)
+
+A **Cucumber BDD layer sits on top of** the existing framework and **reuses the same Page
+Objects** under `src/pages/`. Plain-English `.feature` files describe behaviour; step
+definitions delegate straight to the POMs — no automation logic is duplicated. Everything
+lives under [`src/cucumber/`](src/cucumber/) and the rest of the framework is untouched.
+
+Full teaching walkthrough: **[`docs/cucumber-playwright-tutorial.html`](docs/cucumber-playwright-tutorial.html)** (self-contained) and the folder guide **[`src/cucumber/README.md`](src/cucumber/README.md)**.
+
+### Three glue components
+
+| Component | File | Role |
+|-----------|------|------|
+| Profiles | `cucumber.js` | One profile per level; sets `TS_NODE_PROJECT` to the CommonJS tsconfig before steps load. |
+| CommonJS tsconfig | `src/cucumber/tsconfig.json` | `ts-node` override (`module: CommonJS`) + path aliases, since the root tsconfig is `Node16`. |
+| World + hooks | `src/cucumber/support/` | `CustomWorld` holds the page + POMs per scenario; hooks launch/tear down Chromium and screenshot failures. |
+
+### Layout
+
+```
+src/cucumber/
+├── tsconfig.json                 # CommonJS override for ts-node
+├── support/
+│   ├── world.ts                  # CustomWorld: page + Page Objects per scenario
+│   └── hooks.ts                  # Chromium lifecycle + failure screenshots
+├── level-00-installation/        # wiring smoke (1 scenario)
+├── level-01-basic/               # Feature/Background/Given-When-Then (3 scenarios)
+└── level-02-data-driven/         # Scenario Outline + Data Table + external JSON (9 scenarios)
+```
+
+### Run
+
+```bash
+npm run cucumber:level0    # 1 scenario  (2 steps)  — install/wiring smoke
+npm run cucumber:level1    # 3 scenarios (9 steps)  — basic login scenarios
+npm run cucumber:level2    # 9 scenarios (31 steps) — data-driven techniques
+npm run cucumber           # all levels
+npm run cucumber:headed    # watch it in a real browser
+```
+
+HTML report renders to `reports/cucumber/report.html` (gitignored).
 
 ---
 

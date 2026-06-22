@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cucumber × Playwright — BDD over TTACart · The Testing Academy</title>
+<meta name="description" content="A 3-hour, hands-on masterclass that adds a Cucumber BDD layer on top of the TTACart Playwright + TypeScript framework — reusing the existing Page Objects." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ===== Theme — lifted from qamasterclass.vercel.app ===== */
+  :root {
+    --bg: #fbf8f1;
+    --bg-2: #f3eee2;
+    --surface: #ffffff;
+    --surface-2: #f7f2e6;
+    --surface-3: #ebe4d2;
+    --ink: #1b1815;
+    --ink-soft: #3a342c;
+    --muted: #7a6f5e;
+    --muted-2: #9a8f7d;
+    --accent: #cc6633;
+    --accent-strong: #a64d1f;
+    --accent-soft: #fbe7d3;
+    --accent-ghost: #fef3e6;
+    --pop: #1f4d8a;
+    --pop-soft: #e4edf7;
+    --border: #ebe2cd;
+    --border-strong: #d8cdb1;
+    --code-bg: #1a1714;
+    --code-ink: #f3eee2;
+    --code-key: #ffa57c;
+    --code-str: #c4d68f;
+    --code-com: #8a8174;
+    --code-fn: #e5a9ff;
+    --code-acc: #ffb87a;
+    --shadow-sm: 0 1px 2px rgba(26,23,20,.05);
+    --shadow-md: 0 6px 22px rgba(26,23,20,.10);
+    --shadow-lg: 0 18px 48px rgba(26,23,20,.14);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --sidebar-w: 280px;
+    --topbar-h: 60px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: calc(var(--topbar-h) + 18px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink-soft);
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3,h4,h5,h6 { color: var(--ink); line-height: 1.18; }
+  a { color: var(--accent-strong); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ===== App shell ===== */
+  .tta-shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .tta-sidebar {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    background: var(--surface-2); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .tta-sidebar-head { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .tta-brand { display: flex; align-items: center; gap: 12px; }
+  .tta-brand-mark {
+    width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--accent); color: #fff; font-size: 18px; box-shadow: var(--shadow-sm);
+  }
+  .tta-brand-text strong { display: block; color: var(--ink); font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+  .tta-brand-text span { font-size: 11.5px; color: var(--muted); }
+  .tta-nav { padding: 14px 12px 24px; }
+  .tta-nav .group { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted-2); padding: 16px 12px 6px; }
+  .tta-nav a {
+    display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; color: var(--ink-soft); margin: 1px 0;
+  }
+  .tta-nav a .ix { width: 18px; color: var(--muted-2); font-size: 13px; text-align: center; }
+  .tta-nav a:hover { background: var(--surface-3); text-decoration: none; }
+  .tta-nav a.active { background: var(--accent-ghost); color: var(--accent-strong); font-weight: 600; }
+  .tta-nav a.active .ix { color: var(--accent); }
+
+  /* Main + topbar */
+  .tta-main { min-width: 0; }
+  .tta-topbar {
+    position: sticky; top: 0; z-index: 40; height: var(--topbar-h);
+    display: flex; align-items: center; gap: 12px; padding: 0 26px;
+    background: rgba(251,248,241,.85); backdrop-filter: saturate(160%) blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .tta-icon-btn {
+    display: none; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    width: 36px; height: 36px; border-radius: 8px; font-size: 16px; cursor: pointer;
+  }
+  .tta-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); }
+  .tta-breadcrumb .sep { color: var(--muted-2); }
+  .tta-breadcrumb strong { color: var(--ink); font-weight: 600; }
+  .tta-topbar .right { margin-left: auto; display: flex; gap: 8px; }
+
+  .tta-content { max-width: 960px; margin: 0 auto; padding: 8px 26px 80px; }
+
+  /* ===== Section primitives (kicker / title / body) ===== */
+  .doc-section { padding: 44px 0; border-bottom: 1px solid var(--border); }
+  .kicker { font-size: 11.8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent-strong); margin: 0 0 10px; }
+  .title { font-size: clamp(26px, 4vw, 42px); font-weight: 800; color: var(--ink);
+    letter-spacing: -.015em; margin: 0 0 8px; }
+  .title em { font-style: normal; color: var(--accent-strong); }
+  .body { font-size: 15.5px; color: var(--ink-soft); max-width: 72ch; }
+  h3.sub { font-size: 18px; margin: 28px 0 8px; }
+
+  /* Hero */
+  .hero { padding: 52px 0 38px; border-bottom: 1px solid var(--border); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11.2px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent-strong); background: var(--accent-ghost);
+    border: 1px solid rgba(204,102,51,.3); padding: 6px 12px; border-radius: 999px;
+  }
+  .hero h1 { font-size: clamp(32px, 5.4vw, 52px); font-weight: 800; letter-spacing: -.02em; margin: 18px 0 14px; }
+  .hero h1 em { font-style: normal; color: var(--accent-strong); }
+  .hero .lead { font-size: clamp(16px, 2vw, 19px); color: var(--ink-soft); max-width: 62ch; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0 26px; }
+  .chip { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent-strong);
+    background: var(--surface); border: 1px solid var(--border); padding: 6px 11px; border-radius: 8px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14.5px;
+    padding: 11px 20px; border-radius: 10px; border: 1px solid transparent; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-strong); text-decoration: none; }
+  .btn-ghost { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent-strong); text-decoration: none; }
+
+  /* Cards */
+  .grid { display: grid; gap: 14px; margin: 18px 0; }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 18px; box-shadow: var(--shadow-sm); }
+  .card .num { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent-ghost); color: var(--accent-strong); font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .card h4 { margin: 0 0 6px; font-size: 15.5px; }
+  .card p { font-size: 13.5px; color: var(--muted); margin: 0; }
+  .card code { font-size: 12.5px; color: var(--accent-strong); }
+
+  /* ===== Cheat sheet grid (the "PPT" reference) ===== */
+  .cheat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0; }
+  .cheat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 14px 14px 16px; box-shadow: var(--shadow-sm); }
+  .cheat-card .h { font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 8px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .cheat-card.is-blue .h { color: var(--pop); }
+  .cheat-card.is-green .h { color: #4a7c3f; }
+  .cheat-card h6 { margin: 12px 0 6px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-2); }
+  .cheat-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12.5px; color: var(--ink-soft); }
+  .cheat-row > span:last-child { color: var(--muted); }
+  .kbd { font-family: 'JetBrains Mono', monospace; font-size: 11.2px; font-weight: 600; letter-spacing: .04em;
+    background: var(--bg); color: var(--accent-strong); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 1px 7px; white-space: nowrap; }
+  .cheat-card.is-blue .kbd { color: var(--pop); }
+
+  /* Code blocks */
+  .code { background: var(--code-bg); border-radius: var(--radius-md); overflow: hidden; margin: 16px 0; box-shadow: var(--shadow-md); }
+  .code-bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; background: #151210; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .code-bar .name { margin-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8a8174; }
+  .code pre { margin: 0; padding: 18px 20px; overflow-x: auto; }
+  .code code { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.7; color: var(--code-ink); white-space: pre; }
+  .tok-key { color: var(--code-key); } .tok-str { color: var(--code-str); } .tok-com { color: var(--code-com); font-style: italic; }
+  .tok-fn { color: var(--code-fn); } .tok-gher { color: var(--code-acc); } .tok-num { color: #e5a9ff; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--surface-2); }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 12.5px; color: var(--accent-strong); background: var(--accent-ghost); padding: 1px 6px; border-radius: 5px; }
+
+  /* Misc */
+  .tree { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 18px 22px; font-family: 'JetBrains Mono', monospace; font-size: 12.8px; color: var(--ink-soft);
+    white-space: pre; overflow-x: auto; line-height: 1.75; margin: 16px 0; }
+  .note { border-left: 3px solid var(--accent); background: var(--accent-ghost); padding: 14px 18px;
+    border-radius: var(--radius-sm); margin: 18px 0; font-size: 14.5px; }
+  .note strong { color: var(--accent-strong); }
+  .runout { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #4a7c3f;
+    background: #f0f5ea; border: 1px solid #d6e6c9; border-radius: var(--radius-sm); padding: 11px 16px; margin: 12px 0; }
+  .shot { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); margin: 14px 0; display: block; }
+  .cap { font-size: 13px; color: var(--muted); margin: 4px 0 22px; }
+  .ltag { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #fff;
+    background: var(--accent); padding: 3px 9px; border-radius: 6px; vertical-align: middle; margin-left: 10px; }
+
+  footer { padding: 36px 0 60px; }
+  .foot { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13.5px; }
+
+  @media (max-width: 980px) {
+    .tta-shell { grid-template-columns: 1fr; }
+    .tta-sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-w); z-index: 60;
+      transform: translateX(-100%); transition: transform .2s ease; }
+    .tta-sidebar.open { transform: translateX(0); }
+    .tta-icon-btn { display: grid; place-items: center; }
+    .cheat-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) { .cheat-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="tta-shell">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="tta-sidebar" id="sidebar">
+    <div class="tta-sidebar-head">
+      <a class="tta-brand" href="#top">
+        <span class="tta-brand-mark">🥒</span>
+        <span class="tta-brand-text">
+          <strong>Cucumber × Playwright</strong>
+          <span>The Testing Academy</span>
+        </span>
+      </a>
+    </div>
+    <nav class="tta-nav">
+      <div class="group">Foundations</div>
+      <a href="#why"><span class="ix">◆</span> What is Cucumber?</a>
+      <a href="#wiring"><span class="ix">◆</span> How it's wired in</a>
+      <div class="group">Levels</div>
+      <a href="#level0"><span class="ix">0</span> Installation</a>
+      <a href="#level1"><span class="ix">1</span> Basic scenarios</a>
+      <a href="#level2"><span class="ix">2</span> Data-driven</a>
+      <div class="group">Reference</div>
+      <a href="#cheat-sheet"><span class="ix">▤</span> Cheat sheet</a>
+      <a href="#commands"><span class="ix">›</span> Commands</a>
+      <a href="#agenda"><span class="ix">◷</span> 3-hour agenda</a>
+      <a href="#tour"><span class="ix">▦</span> TTACart tour</a>
+      <a href="#trouble"><span class="ix">?</span> Troubleshooting</a>
+    </nav>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="tta-main">
+    <header class="tta-topbar">
+      <button class="tta-icon-btn" id="menuBtn" aria-label="Open menu">☰</button>
+      <div class="tta-breadcrumb">
+        <span>Masterclass</span>
+        <span class="sep">›</span>
+        <span id="crumbGroup">Foundations</span>
+        <span class="sep">›</span>
+        <strong id="crumbItem">What is Cucumber?</strong>
+      </div>
+      <div class="right">
+        <a class="pill" href="https://github.com/PramodDutta/AdvancePlaywrightFramework1x">GitHub ↗</a>
+      </div>
+    </header>
+
+    <div class="tta-content">
+
+      <!-- HERO -->
+      <div class="hero" id="top">
+        <span class="pill">Hands-on · 3 hours · TypeScript</span>
+        <h1>Add <em>Cucumber BDD</em> on top of your Playwright framework</h1>
+        <p class="lead">
+          Plain-English <code>.feature</code> files describe the behaviour; the steps delegate
+          straight to the <strong>Page Objects you already have</strong>. No automation logic is
+          duplicated — Cucumber is a readable front end over TTACart.
+        </p>
+        <div class="chips">
+          <span class="chip">@cucumber/cucumber</span>
+          <span class="chip">ts-node</span>
+          <span class="chip">tsconfig-paths</span>
+          <span class="chip">@playwright/test</span>
+          <span class="chip">13 scenarios · 42 steps</span>
+        </div>
+        <div class="cta">
+          <a class="btn btn-primary" href="#level0">Start with Level 0 →</a>
+          <a class="btn btn-ghost" href="#cheat-sheet">Jump to cheat sheet</a>
+        </div>
+      </div>
+
+      <!-- WHY -->
+      <section class="doc-section" id="why" data-group="Foundations" data-title="What is Cucumber?">
+        <p class="kicker">Concept</p>
+        <h2 class="title">What is Cucumber — its <em>three components</em>.</h2>
+        <p class="body">
+          Cucumber runs <strong>Behaviour-Driven Development</strong>: you write specifications in
+          a structured plain language called <em>Gherkin</em>, and Cucumber executes them by
+          matching each line to a step definition. Three moving parts:
+        </p>
+        <div class="grid grid-3">
+          <div class="card"><span class="num">1</span><h4>Feature file</h4>
+            <p>The Gherkin spec — <code>Feature</code>, <code>Scenario</code>,
+              <code>Given/When/Then</code>. Readable by anyone on the team.</p></div>
+          <div class="card"><span class="num">2</span><h4>Step definitions</h4>
+            <p>Each Gherkin line maps to a TypeScript function that drives an existing
+              Page Object. The glue to your framework.</p></div>
+          <div class="card"><span class="num">3</span><h4>Support code</h4>
+            <p>The <code>World</code> (per-scenario state + Page Objects) and hooks that launch
+              and tear down the browser.</p></div>
+        </div>
+        <div class="note">
+          <strong>Given / When / Then are aliases.</strong> They behave identically — the words
+          tell a story: <strong>Given</strong> a context, <strong>When</strong> an action,
+          <strong>Then</strong> an outcome. <code>And</code> / <code>But</code> continue the previous keyword.
+        </div>
+      </section>
+
+      <!-- WIRING -->
+      <section class="doc-section" id="wiring" data-group="Foundations" data-title="How it's wired in">
+        <p class="kicker">Setup</p>
+        <h2 class="title">How it's <em>wired into</em> the framework.</h2>
+        <p class="body">Everything lives under <code>src/cucumber/</code>; nothing else changes.</p>
+        <div class="tree">src/cucumber/
+├── tsconfig.json                 # CommonJS override for ts-node
+├── support/
+│   ├── world.ts                  # CustomWorld: page + Page Objects per scenario
+│   └── hooks.ts                  # Chromium lifecycle + failure screenshots
+├── level-00-installation/        # wiring smoke (1 scenario)
+├── level-01-basic/               # Feature/Background/Given-When-Then (3 scenarios)
+└── level-02-data-driven/         # Scenario Outline + Data Table + JSON (9 scenarios)</div>
+
+        <h3 class="sub">The three glue pieces</h3>
+        <div class="grid grid-3">
+          <div class="card"><span class="num">A</span><h4><code>cucumber.js</code></h4>
+            <p>One profile per level. Sets <code>TS_NODE_PROJECT</code> to the CommonJS tsconfig
+              <em>before</em> hooks load; registers ts-node + tsconfig-paths.</p></div>
+          <div class="card"><span class="num">B</span><h4><code>tsconfig.json</code></h4>
+            <p>Root tsconfig is <code>Node16</code>, which ts-node can't <code>require</code>.
+              This override flips to <code>CommonJS</code> and re-declares the path aliases.</p></div>
+          <div class="card"><span class="num">C</span><h4><code>support/</code></h4>
+            <p><code>world.ts</code> holds the page + POMs per scenario; <code>hooks.ts</code>
+              launches/tears down Chromium and screenshots failures.</p></div>
+        </div>
+
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">cucumber.js</span></div>
+<pre><code><span class="tok-com">// sets the CommonJS tsconfig before the requireModule hooks load</span>
+process.env.<span class="tok-key">TS_NODE_PROJECT</span> = process.env.TS_NODE_PROJECT || <span class="tok-str">'src/cucumber/tsconfig.json'</span>;
+
+<span class="tok-key">const</span> common = {
+  <span class="tok-key">requireModule</span>: [<span class="tok-str">'ts-node/register'</span>, <span class="tok-str">'tsconfig-paths/register'</span>],
+  <span class="tok-key">format</span>: [<span class="tok-str">'progress-bar'</span>, <span class="tok-str">'html:reports/cucumber/report.html'</span>, <span class="tok-str">'summary'</span>],
+};
+
+module.exports = {
+  <span class="tok-key">level1</span>: { ...common,
+    <span class="tok-key">require</span>: [<span class="tok-str">'src/cucumber/support/**/*.ts'</span>, <span class="tok-str">'src/cucumber/level-01-basic/steps/**/*.ts'</span>],
+    <span class="tok-key">paths</span>:   [<span class="tok-str">'src/cucumber/level-01-basic/features/**/*.feature'</span>] },
+  <span class="tok-com">// level2 also loads level1 steps — login steps are reused</span>
+};</code></pre>
+        </div>
+
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">support/world.ts</span></div>
+<pre><code><span class="tok-key">export class</span> <span class="tok-fn">CustomWorld</span> <span class="tok-key">extends</span> World {
+  page!: Page;
+  loginPage!: LoginPage;
+  cartPage!: CartPage;        <span class="tok-com">// …all the existing Page Objects</span>
+
+  <span class="tok-fn">initPages</span>(): <span class="tok-key">void</span> {       <span class="tok-com">// called from the Before hook</span>
+    <span class="tok-key">this</span>.loginPage = <span class="tok-key">new</span> <span class="tok-fn">LoginPage</span>(<span class="tok-key">this</span>.page);
+    <span class="tok-key">this</span>.cartPage  = <span class="tok-key">new</span> <span class="tok-fn">CartPage</span>(<span class="tok-key">this</span>.page);
+  }
+}
+<span class="tok-fn">setWorldConstructor</span>(CustomWorld);</code></pre>
+        </div>
+
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">support/hooks.ts</span></div>
+<pre><code><span class="tok-fn">BeforeAll</span>(<span class="tok-key">async</span> () => { browser = <span class="tok-key">await</span> chromium.<span class="tok-fn">launch</span>({ headless: !process.env.HEADED }); });
+
+<span class="tok-fn">Before</span>(<span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld) {
+  <span class="tok-key">this</span>.context = <span class="tok-key">await</span> browser.<span class="tok-fn">newContext</span>({ baseURL: BASE_URL });
+  <span class="tok-key">this</span>.page = <span class="tok-key">await</span> <span class="tok-key">this</span>.context.<span class="tok-fn">newPage</span>();
+  <span class="tok-key">this</span>.<span class="tok-fn">initPages</span>();
+});
+
+<span class="tok-fn">After</span>(<span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld, { result }) {
+  <span class="tok-key">if</span> (result?.status === Status.FAILED) <span class="tok-key">this</span>.<span class="tok-fn">attach</span>(<span class="tok-key">await</span> <span class="tok-key">this</span>.page.<span class="tok-fn">screenshot</span>(), <span class="tok-str">'image/png'</span>);
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.page?.<span class="tok-fn">close</span>();
+});</code></pre>
+        </div>
+      </section>
+
+      <!-- LEVEL 0 -->
+      <section class="doc-section" id="level0" data-group="Levels" data-title="Level 0 · Installation">
+        <p class="kicker">Level 0</p>
+        <h2 class="title">Installation &amp; <em>wiring smoke</em>.<span class="ltag">1 scenario</span></h2>
+        <p class="body">Install the three packages, then prove the whole toolchain runs end to end.</p>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">terminal</span></div>
+<pre><code>npm install -D @cucumber/cucumber ts-node tsconfig-paths
+npx playwright install chromium
+npm run cucumber:level0</code></pre>
+        </div>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">smoke.feature</span></div>
+<pre><code><span class="tok-gher">@level0 @smoke</span>
+<span class="tok-key">Feature:</span> Cucumber + Playwright wiring (Level 0)
+
+  <span class="tok-key">Scenario:</span> The TTACart login page loads
+    <span class="tok-gher">Given</span> I open the TTACart login page
+    <span class="tok-gher">Then</span> the page title should contain <span class="tok-str">"TTACart"</span></code></pre>
+        </div>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">smoke.steps.ts</span></div>
+<pre><code><span class="tok-fn">Given</span>(<span class="tok-str">'I open the TTACart login page'</span>, <span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld) {
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.page.<span class="tok-fn">goto</span>(LoginPage.PATH);
+});
+
+<span class="tok-fn">Then</span>(<span class="tok-str">'the page title should contain {string}'</span>, <span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld, expected: <span class="tok-key">string</span>) {
+  <span class="tok-key">await</span> <span class="tok-fn">expect</span>(<span class="tok-key">this</span>.page).<span class="tok-fn">toHaveTitle</span>(<span class="tok-key">new</span> <span class="tok-fn">RegExp</span>(expected, <span class="tok-str">'i'</span>));
+});</code></pre>
+        </div>
+        <div class="runout">✔ 1 scenario (1 passed) · 2 steps (2 passed)</div>
+      </section>
+
+      <!-- LEVEL 1 -->
+      <section class="doc-section" id="level1" data-group="Levels" data-title="Level 1 · Basics">
+        <p class="kicker">Level 1</p>
+        <h2 class="title">Basic <em>scenarios</em>.<span class="ltag">3 scenarios</span></h2>
+        <p class="body">
+          <code>Feature</code> + <code>Background</code> + <code>Given/When/Then</code>. A
+          <code>Background</code> runs before every scenario — here it opens the login page. The
+          steps call straight into <code>LoginPage</code> and <code>InventoryPage</code>.
+        </p>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">login.feature</span></div>
+<pre><code><span class="tok-gher">@level1 @login</span>
+<span class="tok-key">Feature:</span> TTACart Login (Level 1 — basic scenarios)
+
+  <span class="tok-key">Background:</span>
+    <span class="tok-gher">Given</span> I am on the TTACart login page
+
+  <span class="tok-gher">@smoke @P0</span>
+  <span class="tok-key">Scenario:</span> A standard user can log in
+    <span class="tok-gher">When</span> I log in as <span class="tok-str">"standard_user"</span> with password <span class="tok-str">"tta_secret"</span>
+    <span class="tok-gher">Then</span> I should land on the products page
+
+  <span class="tok-gher">@negative</span>
+  <span class="tok-key">Scenario:</span> A locked-out user is refused
+    <span class="tok-gher">When</span> I log in as <span class="tok-str">"locked_out_user"</span> with password <span class="tok-str">"tta_secret"</span>
+    <span class="tok-gher">Then</span> I should see a login error containing <span class="tok-str">"locked out"</span></code></pre>
+        </div>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">login.steps.ts</span></div>
+<pre><code><span class="tok-fn">When</span>(<span class="tok-str">'I log in as {string} with password {string}'</span>,
+  <span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld, username: <span class="tok-key">string</span>, password: <span class="tok-key">string</span>) {
+    <span class="tok-key">await</span> <span class="tok-key">this</span>.loginPage.<span class="tok-fn">loginAs</span>(username, password);   <span class="tok-com">// ← reuses the POM</span>
+  });
+
+<span class="tok-fn">Then</span>(<span class="tok-str">'I should land on the products page'</span>, <span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld) {
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.inventoryPage.<span class="tok-fn">assertLoaded</span>();
+});</code></pre>
+        </div>
+        <div class="runout">✔ 3 scenarios (3 passed) · 9 steps (9 passed)</div>
+        <div class="note">
+          <strong>Negative copy.</strong> <code>"locked out"</code> and <code>"do not match"</code>
+          must match the real TTACart error strings — the step asserts
+          <code>[data-test="error"]</code> contains them.
+        </div>
+      </section>
+
+      <!-- LEVEL 2 -->
+      <section class="doc-section" id="level2" data-group="Levels" data-title="Level 2 · Data-driven">
+        <p class="kicker">Level 2</p>
+        <h2 class="title">Data-driven <em>techniques</em>.<span class="ltag">9 scenarios</span></h2>
+        <p class="body">The three ways Cucumber feeds data into one scenario body:</p>
+        <div class="grid grid-3">
+          <div class="card"><span class="num">▤</span><h4>Scenario Outline</h4>
+            <p>One scenario, many <code>Examples</code> rows. Each row re-runs the body with its
+              placeholders filled in.</p></div>
+          <div class="card"><span class="num">▦</span><h4>Data Table</h4>
+            <p>A table passed <em>into a single step</em> — add N products in one
+              <code>When</code> via <code>table.hashes()</code>.</p></div>
+          <div class="card"><span class="num">{}</span><h4>External JSON</h4>
+            <p>Personas read from <code>data/customers.json</code>; a full checkout runs per
+              persona.</p></div>
+        </div>
+
+        <h3 class="sub">Scenario Outline</h3>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">login-outline.feature</span></div>
+<pre><code>  <span class="tok-key">Scenario Outline:</span> &lt;username&gt; logging in ends on the &lt;outcome&gt;
+    <span class="tok-gher">When</span> I log in as <span class="tok-str">"&lt;username&gt;"</span> with password <span class="tok-str">"&lt;password&gt;"</span>
+    <span class="tok-gher">Then</span> I should see the <span class="tok-str">"&lt;outcome&gt;"</span>
+
+    <span class="tok-key">Examples:</span> valid users
+      | username                | password   | outcome  |
+      | standard_user           | tta_secret | products |
+      | problem_user            | tta_secret | products |
+      | performance_glitch_user | tta_secret | products |</code></pre>
+        </div>
+
+        <h3 class="sub">Data Table</h3>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">cart-datatable.feature + steps</span></div>
+<pre><code>    <span class="tok-gher">When</span> I add the following products to the cart:
+      | productId                    |
+      | tta-practice-backpack        |
+      | tta-bike-light               |
+      | test-allthethings-tshirt-red |
+
+<span class="tok-com">// step — one When consumes the whole table</span>
+<span class="tok-fn">When</span>(<span class="tok-str">'I add the following products to the cart:'</span>, <span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld, table: DataTable) {
+  <span class="tok-key">for</span> (<span class="tok-key">const</span> { productId } <span class="tok-key">of</span> table.<span class="tok-fn">hashes</span>()) <span class="tok-key">await</span> <span class="tok-key">this</span>.inventoryPage.<span class="tok-fn">addToCart</span>(productId);
+});</code></pre>
+        </div>
+
+        <h3 class="sub">External JSON</h3>
+        <div class="code">
+          <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">checkout.steps.ts</span></div>
+<pre><code><span class="tok-key">const</span> customers = <span class="tok-fn">JSON</span>.<span class="tok-fn">parse</span>(<span class="tok-fn">readFileSync</span>(<span class="tok-fn">join</span>(__dirname, <span class="tok-str">'../data/customers.json'</span>), <span class="tok-str">'utf-8'</span>));
+
+<span class="tok-fn">When</span>(<span class="tok-str">'I check out as the {string} customer'</span>, <span class="tok-key">async function</span> (<span class="tok-key">this</span>: CustomWorld, persona: <span class="tok-key">string</span>) {
+  <span class="tok-key">const</span> customer = customers[persona];
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.cartPage.<span class="tok-fn">checkout</span>();
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.checkoutStepOnePage.<span class="tok-fn">fillGuest</span>(customer);    <span class="tok-com">// ← reuses the POM</span>
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.checkoutStepOnePage.<span class="tok-fn">continue</span>();
+  <span class="tok-key">await</span> <span class="tok-key">this</span>.checkoutStepTwoPage.<span class="tok-fn">finish</span>();
+});</code></pre>
+        </div>
+        <div class="runout">✔ 9 scenarios (9 passed) · 31 steps (31 passed)</div>
+      </section>
+
+      <!-- CHEAT SHEET (the "PPT" reference) -->
+      <section class="doc-section" id="cheat-sheet" data-group="Reference" data-title="Cheat sheet">
+        <p class="kicker">Print-friendly reference · pin this above your desk</p>
+        <h2 class="title">Cucumber × Playwright · <em>full cheat sheet</em>.</h2>
+        <p class="body">Every Gherkin keyword, npm script, data technique, and config knob for this
+          BDD layer — on one screen. Use <span class="kbd">⌘P</span> to print; the grid collapses to A4.</p>
+
+        <div class="cheat-grid">
+
+          <!-- COL 1 · Gherkin -->
+          <div class="cheat-card">
+            <div class="h">🥒 Gherkin keywords</div>
+            <h6>Structure</h6>
+            <div class="cheat-row"><span class="kbd">Feature</span><span>Top-level grouping</span></div>
+            <div class="cheat-row"><span class="kbd">Background</span><span>Runs before each Scenario</span></div>
+            <div class="cheat-row"><span class="kbd">Scenario</span><span>One concrete example</span></div>
+            <div class="cheat-row"><span class="kbd">Rule</span><span>Group scenarios by rule</span></div>
+            <h6>Steps</h6>
+            <div class="cheat-row"><span class="kbd">Given</span><span>A starting context</span></div>
+            <div class="cheat-row"><span class="kbd">When</span><span>An action</span></div>
+            <div class="cheat-row"><span class="kbd">Then</span><span>An expected outcome</span></div>
+            <div class="cheat-row"><span class="kbd">And</span><span class="kbd">But</span></div>
+          </div>
+
+          <!-- COL 2 · Data -->
+          <div class="cheat-card is-green">
+            <div class="h">▦ Data techniques</div>
+            <h6>Parameterise</h6>
+            <div class="cheat-row"><span class="kbd">Scenario Outline</span><span>Templated body</span></div>
+            <div class="cheat-row"><span class="kbd">Examples:</span><span>Rows feed the outline</span></div>
+            <div class="cheat-row"><span class="kbd">&lt;name&gt;</span><span>Placeholder token</span></div>
+            <h6>In a step</h6>
+            <div class="cheat-row"><span class="kbd">DataTable</span><span>Table arg to one step</span></div>
+            <div class="cheat-row"><span class="kbd">table.hashes()</span><span>Rows as objects</span></div>
+            <div class="cheat-row"><span class="kbd">{string}</span><span class="kbd">{int}</span></div>
+            <h6>External</h6>
+            <div class="cheat-row"><span class="kbd">readFileSync</span><span>Load JSON personas</span></div>
+          </div>
+
+          <!-- COL 3 · Commands -->
+          <div class="cheat-card is-blue">
+            <div class="h">⌨ npm scripts</div>
+            <h6>Run a level</h6>
+            <div class="cheat-row"><span class="kbd">cucumber:level0</span><span>1 · 2 steps</span></div>
+            <div class="cheat-row"><span class="kbd">cucumber:level1</span><span>3 · 9 steps</span></div>
+            <div class="cheat-row"><span class="kbd">cucumber:level2</span><span>9 · 31 steps</span></div>
+            <div class="cheat-row"><span class="kbd">cucumber</span><span>All levels</span></div>
+            <div class="cheat-row"><span class="kbd">cucumber:headed</span><span>Watch browser</span></div>
+            <h6>Filter / env</h6>
+            <div class="cheat-row"><span class="kbd">--tags "@negative"</span></div>
+            <div class="cheat-row"><span class="kbd">--profile level2</span></div>
+            <div class="cheat-row"><span class="kbd">BASE_URL=…</span><span class="kbd">HEADED=1</span></div>
+          </div>
+
+          <!-- COL 4 · Wiring -->
+          <div class="cheat-card">
+            <div class="h">⚙ Wiring files</div>
+            <h6>Config</h6>
+            <div class="cheat-row"><span class="kbd">cucumber.js</span><span>Profiles per level</span></div>
+            <div class="cheat-row"><span class="kbd">tsconfig.json</span><span>CommonJS override</span></div>
+            <h6>Support</h6>
+            <div class="cheat-row"><span class="kbd">world.ts</span><span>Page + POMs</span></div>
+            <div class="cheat-row"><span class="kbd">hooks.ts</span><span>Browser lifecycle</span></div>
+            <h6>Hooks</h6>
+            <div class="cheat-row"><span class="kbd">BeforeAll</span><span>Launch Chromium</span></div>
+            <div class="cheat-row"><span class="kbd">Before</span><span>New context + POMs</span></div>
+            <div class="cheat-row"><span class="kbd">After</span><span>Screenshot on fail</span></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- COMMANDS -->
+      <section class="doc-section" id="commands" data-group="Reference" data-title="Commands">
+        <p class="kicker">Reference</p>
+        <h2 class="title">Commands <em>in full</em>.</h2>
+        <table>
+          <thead><tr><th>Command</th><th>What it runs</th></tr></thead>
+          <tbody>
+            <tr><td><code>npm run cucumber:level0</code></td><td>Level 0 — 1 scenario / 2 steps</td></tr>
+            <tr><td><code>npm run cucumber:level1</code></td><td>Level 1 — 3 scenarios / 9 steps</td></tr>
+            <tr><td><code>npm run cucumber:level2</code></td><td>Level 2 — 9 scenarios / 31 steps (loads Level 1 steps too)</td></tr>
+            <tr><td><code>npm run cucumber</code></td><td>Every level (default profile)</td></tr>
+            <tr><td><code>npm run cucumber:headed</code></td><td><code>HEADED=1</code> — watch the browser</td></tr>
+            <tr><td><code>npx cucumber-js --profile level2 --tags "@datatable"</code></td><td>Filter by tag inside a profile</td></tr>
+            <tr><td><code>BASE_URL=… npm run cucumber</code></td><td>Point at a different environment</td></tr>
+          </tbody>
+        </table>
+        <div class="note"><strong>Report:</strong> an HTML report renders to
+          <code>reports/cucumber/report.html</code> (gitignored) after every run.</div>
+      </section>
+
+      <!-- AGENDA -->
+      <section class="doc-section" id="agenda" data-group="Reference" data-title="3-hour agenda">
+        <p class="kicker">Workshop</p>
+        <h2 class="title">A <em>3-hour</em> agenda.</h2>
+        <table>
+          <thead><tr><th>Time</th><th>Topic</th></tr></thead>
+          <tbody>
+            <tr><td>0:00–0:20</td><td>What is BDD? The three components; Given/When/Then.</td></tr>
+            <tr><td>0:20–0:45</td><td><strong>Level 0</strong> — install, <code>cucumber.js</code>, the CommonJS tsconfig, first green run.</td></tr>
+            <tr><td>0:45–1:30</td><td><strong>Level 1</strong> — Feature/Background, step definitions, the World, reusing Page Objects.</td></tr>
+            <tr><td>1:30–1:45</td><td>Break.</td></tr>
+            <tr><td>1:45–2:40</td><td><strong>Level 2</strong> — Scenario Outline, Data Table, external JSON; hooks + failure screenshots.</td></tr>
+            <tr><td>2:40–3:00</td><td>Tag filtering, the HTML report, wrap-up + Q&amp;A.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- TOUR -->
+      <section class="doc-section" id="tour" data-group="Reference" data-title="TTACart tour">
+        <p class="kicker">Context</p>
+        <h2 class="title">How we <em>automated TTACart</em>.</h2>
+        <p class="body">Cucumber sits at the top of a layered Playwright framework. Each layer has one
+          job; the BDD steps only ever talk to the Page Object layer:</p>
+        <table>
+          <thead><tr><th>Layer</th><th>Lives in</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>Gherkin features</td><td><code>src/cucumber/**/features</code></td><td>Describe behaviour in plain English.</td></tr>
+            <tr><td>Step definitions</td><td><code>src/cucumber/**/steps</code></td><td>Map each line to a Page Object call.</td></tr>
+            <tr><td>Page Objects</td><td><code>src/pages</code></td><td>Encapsulate selectors + actions per screen.</td></tr>
+            <tr><td>Element utilities</td><td><code>src/utils/UtilElementLocator</code></td><td>Logged, timeout-aware locator wrappers.</td></tr>
+            <tr><td>Logger / reporter</td><td><code>src/utils</code></td><td>Winston logs + the custom TTA HTML report.</td></tr>
+          </tbody>
+        </table>
+
+        <h3 class="sub">The custom TTA report</h3>
+        <img class="shot" src="images/tta-report-overview.png" alt="TTA custom report — stats dashboard, environment bar, and filterable test table" />
+        <p class="cap">Overview — stats dashboard, environment bar, and the filterable test table.</p>
+        <img class="shot" src="images/tta-report-e2e-flow.png" alt="TTA custom report — expanded end-to-end checkout flow with per-step screenshots and video" />
+        <p class="cap">End-to-end flow — each step shows its log line and a screenshot, then the gallery and run video.</p>
+      </section>
+
+      <!-- TROUBLE -->
+      <section class="doc-section" id="trouble" data-group="Reference" data-title="Troubleshooting">
+        <p class="kicker">Help</p>
+        <h2 class="title">Troubleshooting.</h2>
+        <table>
+          <thead><tr><th>Symptom</th><th>Cause / fix</th></tr></thead>
+          <tbody>
+            <tr><td><code>Cannot use import statement outside a module</code></td><td><code>TS_NODE_PROJECT</code> isn't pointing at <code>src/cucumber/tsconfig.json</code> — run via the npm scripts.</td></tr>
+            <tr><td><code>Cannot find module '@pages/…'</code></td><td><code>tsconfig-paths/register</code> missing, or aliases not mirrored in the Cucumber tsconfig.</td></tr>
+            <tr><td>Undefined step (yellow)</td><td>The Gherkin text doesn't match any step definition; check the profile loads that steps file.</td></tr>
+            <tr><td>Negative-login assertion fails</td><td>TTACart error copy changed — update the <code>"locked out"</code> / <code>"do not match"</code> fragments.</td></tr>
+            <tr><td>Timeouts on a slow network</td><td>Bump <code>setDefaultTimeout(...)</code> in <code>hooks.ts</code>, or run <code>HEADED=1</code> to watch.</td></tr>
+            <tr><td>Type error only in <code>npm run typecheck</code></td><td>The root tsconfig (<code>Node16</code>) checks the same files; <code>transpileOnly</code> hides it at runtime — fix the type.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer>
+        <div class="foot">
+          <span>🥒 Cucumber × Playwright — built for <strong>The Testing Academy</strong> by Pramod Dutta.</span>
+          <span><a href="https://github.com/PramodDutta/AdvancePlaywrightFramework1x">Repo</a> · theme after <a href="https://qamasterclass.vercel.app/">QA Masterclass</a></span>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mobile sidebar toggle
+  var menuBtn = document.getElementById('menuBtn');
+  var sidebar = document.getElementById('sidebar');
+  if (menuBtn) menuBtn.addEventListener('click', function () { sidebar.classList.toggle('open'); });
+
+  // Scrollspy: highlight active nav link + update breadcrumb
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.doc-section[id]'));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.tta-nav a'));
+  var crumbGroup = document.getElementById('crumbGroup');
+  var crumbItem = document.getElementById('crumbItem');
+  function onScroll() {
+    var pos = window.scrollY + 120, current = sections[0];
+    for (var i = 0; i < sections.length; i++) { if (sections[i].offsetTop <= pos) current = sections[i]; }
+    if (!current) return;
+    var id = current.id;
+    navLinks.forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+    });
+    if (crumbGroup && current.dataset.group) crumbGroup.textContent = current.dataset.group;
+    if (crumbItem && current.dataset.title) crumbItem.textContent = current.dataset.title;
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  navLinks.forEach(function (a) {
+    a.addEventListener('click', function () { sidebar.classList.remove('open'); });
+  });
+</script>
+
+</body>
+</html>

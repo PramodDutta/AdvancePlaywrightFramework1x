@@ -38,6 +38,16 @@ export default tseslint.config(
             ],
         },
     },
+    {
+        // Cucumber's root config (`cucumber.js`) is a CommonJS module run by Node:
+        // it uses `process`, `module`, and `require`, so give it the Node globals
+        // and CommonJS source type. Without this, `no-undef` would fail `eslint .`.
+        files: ['cucumber.js'],
+        languageOptions: {
+            sourceType: 'commonjs',
+            globals: { ...globals.node },
+        },
+    },
     // Turn off any stylistic rules that would fight Prettier. Keep last.
     prettier,
 );
