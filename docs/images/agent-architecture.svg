@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="540" viewBox="0 0 920 540" font-family="ui-sans-serif,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+    <marker id="ahp" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="ahg" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#15803d"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="920" height="540" fill="#ffffff"/>
+  <text x="460" y="34" text-anchor="middle" font-size="26" font-weight="800" fill="#0b1220">TTA Agentic Playwright</text>
+  <text x="460" y="56" text-anchor="middle" font-size="14" fill="#64748b">plan &#8594; generate &#8594; heal   +   AI Agent Factory</text>
+
+  <!-- Zone A: IDE agents -->
+  <rect x="20" y="66" width="880" height="122" rx="14" fill="#dbe4ff" fill-opacity="0.45" stroke="#93c5fd"/>
+  <text x="36" y="86" font-size="13" font-weight="700" fill="#2563eb">IDE agents · .github/agents (MCP + CLI)</text>
+
+  <rect x="44" y="98" width="220" height="64" rx="12" fill="#fff3bf" stroke="#b45309" stroke-width="2"/>
+  <text x="154" y="130" text-anchor="middle" font-size="18" font-weight="700" fill="#0b1220">1. Planner</text>
+  <text x="154" y="150" text-anchor="middle" font-size="12" fill="#64748b">framework-aware plan</text>
+
+  <rect x="350" y="98" width="220" height="64" rx="12" fill="#a5d8ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="460" y="130" text-anchor="middle" font-size="18" font-weight="700" fill="#0b1220">2. Generator</text>
+  <text x="460" y="150" text-anchor="middle" font-size="12" fill="#334155">POM specs · typecheck+lint</text>
+
+  <rect x="656" y="98" width="220" height="64" rx="12" fill="#ffc9c9" stroke="#dc2626" stroke-width="2"/>
+  <text x="766" y="130" text-anchor="middle" font-size="18" font-weight="700" fill="#0b1220">3. Healer</text>
+  <text x="766" y="150" text-anchor="middle" font-size="12" fill="#334155">fix in the right layer</text>
+
+  <line x1="264" y1="130" x2="346" y2="130" stroke="#334155" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="305" y="123" text-anchor="middle" font-size="12" fill="#64748b">specs/</text>
+  <line x1="570" y1="130" x2="652" y2="130" stroke="#334155" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="611" y="123" text-anchor="middle" font-size="12" fill="#64748b">spec</text>
+  <path d="M766 162 L766 178 L460 178 L460 166" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ah)"/>
+  <text x="613" y="174" text-anchor="middle" font-size="11" fill="#dc2626">fix in POM / @testdata, re-run</text>
+
+  <!-- Zone B: AI Agent Factory -->
+  <rect x="20" y="206" width="880" height="312" rx="14" fill="#e5dbff" fill-opacity="0.45" stroke="#c4b5fd"/>
+  <text x="36" y="228" font-size="13" font-weight="700" fill="#6d28d9">src/ai · AI Agent Factory · @ai/index · llmGateway()</text>
+
+  <rect x="44" y="300" width="220" height="86" rx="12" fill="#ffd8a8" stroke="#b45309" stroke-width="2"/>
+  <text x="154" y="338" text-anchor="middle" font-size="18" font-weight="700" fill="#0b1220">LLM Gateway</text>
+  <text x="154" y="362" text-anchor="middle" font-size="12" fill="#334155">OpenRouter · Groq · OpenAI</text>
+
+  <rect x="430" y="248" width="250" height="56" rx="12" fill="#c3fae8" stroke="#15803d" stroke-width="2"/>
+  <text x="555" y="282" text-anchor="middle" font-size="16" font-weight="700" fill="#0b1220">DataGenerator</text>
+
+  <rect x="430" y="316" width="250" height="56" rx="12" fill="#eebefa" stroke="#a21caf" stroke-width="2"/>
+  <text x="555" y="350" text-anchor="middle" font-size="16" font-weight="700" fill="#0b1220">RCA Agent</text>
+
+  <rect x="430" y="384" width="250" height="56" rx="12" fill="#d0bfff" stroke="#6d28d9" stroke-width="2"/>
+  <text x="555" y="418" text-anchor="middle" font-size="16" font-weight="700" fill="#0b1220">Flaky Analyzer</text>
+
+  <line x1="264" y1="338" x2="426" y2="280" stroke="#8b5cf6" stroke-width="2" marker-end="url(#ahp)"/>
+  <line x1="264" y1="343" x2="426" y2="344" stroke="#8b5cf6" stroke-width="2" marker-end="url(#ahp)"/>
+  <line x1="264" y1="348" x2="426" y2="408" stroke="#8b5cf6" stroke-width="2" marker-end="url(#ahp)"/>
+
+  <rect x="720" y="306" width="160" height="80" rx="12" fill="#b2f2bb" stroke="#15803d" stroke-width="2"/>
+  <text x="800" y="340" text-anchor="middle" font-size="15" font-weight="700" fill="#0b1220">Custom Report</text>
+  <text x="800" y="362" text-anchor="middle" font-size="13" fill="#15803d">AI Verdict tab</text>
+
+  <line x1="680" y1="276" x2="716" y2="320" stroke="#15803d" stroke-width="2" marker-end="url(#ahg)"/>
+  <line x1="680" y1="344" x2="716" y2="346" stroke="#15803d" stroke-width="2" marker-end="url(#ahg)"/>
+  <line x1="680" y1="412" x2="716" y2="372" stroke="#15803d" stroke-width="2" marker-end="url(#ahg)"/>
+</svg>
