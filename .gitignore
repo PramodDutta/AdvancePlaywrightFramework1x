@@ -14,6 +14,10 @@ yarn-error.log
 /allure-results/
 /allure-report/
 
+# AI Agent Factory — generated test data (keep the folder via .gitkeep)
+/src/testdata/generated/*
+!/src/testdata/generated/.gitkeep
+
 # TTA Custom Reporter
 /tta-report/
 

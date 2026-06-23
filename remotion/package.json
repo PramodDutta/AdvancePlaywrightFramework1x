@@ -1,0 +1,23 @@
+{
+  "name": "tta-agent-factory-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated Remotion project that renders the AI Agent Factory demo video for the README. Kept out of the main framework package.json on purpose.",
+  "scripts": {
+    "render": "remotion render src/index.ts AgentFactory ../docs/images/agent-factory-demo.mp4 --codec=h264",
+    "gif": "remotion render src/index.ts AgentFactory ../docs/images/agent-factory-demo.gif --codec=gif --every-nth-frame=2 --scale=0.5",
+    "studio": "remotion studio"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.290",
+    "@remotion/cli": "4.0.290",
+    "@remotion/renderer": "4.0.290",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.290"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.6.3"
+  }
+}
