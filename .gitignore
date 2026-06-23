@@ -20,6 +20,9 @@ yarn-error.log
 # Winston logs
 /logs/
 
+# Cucumber HTML report output
+/reports/cucumber/
+
 # TypeScript build
 /dist/
 *.tsbuildinfo

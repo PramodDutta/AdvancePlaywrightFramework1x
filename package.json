@@ -22,13 +22,19 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "build": "tsc",
-    "clean": "rm -rf dist playwright-report test-results allure-results allure-report node_modules/.cache"
+    "clean": "rm -rf dist playwright-report test-results allure-results allure-report node_modules/.cache",
+    "cucumber": "cucumber-js",
+    "cucumber:level0": "cucumber-js --profile level0",
+    "cucumber:level1": "cucumber-js --profile level1",
+    "cucumber:level2": "cucumber-js --profile level2",
+    "cucumber:headed": "HEADED=1 cucumber-js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@cucumber/cucumber": "^12.9.0",
     "@eslint/js": "^9.39.4",
     "@faker-js/faker": "^8.4.1",
     "@playwright/test": "^1.60.0",
@@ -43,6 +49,8 @@
     "globals": "^17.6.0",
     "jsonpath-plus": "^10.4.0",
     "prettier": "^3.8.3",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript-eslint": "^8.60.1",
     "winston": "^3.19.0",
     "xlsx": "^0.18.5"

@@ -20,6 +20,7 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [Path Aliases](#path-aliases)
 - [Environment Configuration](#environment-configuration)
 - [API Testing](#api-testing)
+- [Cucumber BDD (Playwright)](#cucumber-bdd-playwright)
 - [JSONPath Queries (jsonpath-plus)](#jsonpath-queries-jsonpath-plus)
 - [JSON Schema Validation (Ajv)](#json-schema-validation-ajv)
 - [Test Tags & Filtering](#test-tags--filtering)
@@ -204,6 +205,9 @@ npm run test:allure       # Allure HTML
 | `test:report` | Open Playwright HTML report |
 | `test:report:ci` | Serve report on `0.0.0.0:9323` for CI |
 | `test:allure` | Generate + open Allure HTML |
+| `cucumber` | Run all Cucumber BDD scenarios (all levels) |
+| `cucumber:level0` / `cucumber:level1` / `cucumber:level2` | Run a single Cucumber level |
+| `cucumber:headed` | Run Cucumber with the browser visible (`HEADED=1`) |
 | `lint` / `lint:fix` | ESLint check / fix |
 | `typecheck` | `tsc --noEmit` |
 | `format` / `format:check` | Prettier |
@@ -354,6 +358,67 @@ Switch env:
 ```bash
 TTA_ENV=stg npm test
 ```
+
+---
+
+## Cucumber BDD (Playwright)
+
+**Concept:** A **Cucumber BDD layer sits on top of** the existing framework and **reuses the
+same Page Objects** under `src/pages/`. Plain-English `.feature` files describe behaviour in
+Gherkin; step definitions delegate straight to the POMs — no automation logic is duplicated.
+Everything lives under [`src/cucumber/`](src/cucumber/); the rest of the framework is untouched.
+
+**Why:** BDD makes intent readable to non-coders (QA leads, BAs, PMs) while the steps stay thin
+wrappers over Page Objects — one behaviour spec, zero duplicated selectors or flow logic.
+
+**Q&A — why use this?**
+- **Q: Does Cucumber replace the Playwright Test runner?** A: No — it runs *alongside* it. The `.spec.ts` tests still run via `npm test`; Cucumber is a second, behaviour-first entry point over the same POMs.
+- **Q: Why a separate `src/cucumber/tsconfig.json`?** A: The root tsconfig is `module: Node16`, which `ts-node` can't `require`. The override flips to `CommonJS` and re-declares the path aliases — `npm run typecheck` still uses the root config.
+- **Q: How is data fed in?** A: Three ways, all in Level 2 — Scenario Outline `Examples`, a `DataTable` passed to one step, and an external `customers.json` read with `readFileSync`.
+
+```mermaid
+flowchart LR
+    F["*.feature<br/>Gherkin"] --> S["*.steps.ts<br/>step definitions"]
+    S --> W["CustomWorld<br/>(page + Page Objects)"]
+    W --> P["src/pages/*<br/>Page Objects"]
+    P --> APP["TTACart app"]
+    H["hooks.ts<br/>Before / After"] -.->|launch + screenshot| W
+```
+
+Full teaching walkthrough: **[`docs/cucumber-playwright-tutorial.html`](docs/cucumber-playwright-tutorial.html)** (self-contained, themed) and the folder guide **[`src/cucumber/README.md`](src/cucumber/README.md)**.
+
+### Three glue components
+
+| Component | File | Role |
+|-----------|------|------|
+| Profiles | `cucumber.js` | One profile per level; sets `TS_NODE_PROJECT` to the CommonJS tsconfig before steps load. |
+| CommonJS tsconfig | `src/cucumber/tsconfig.json` | `ts-node` override (`module: CommonJS`) + path aliases, since the root tsconfig is `Node16`. |
+| World + hooks | `src/cucumber/support/` | `CustomWorld` holds the page + POMs per scenario; hooks launch/tear down Chromium and screenshot failures. |
+
+### Layout
+
+```
+src/cucumber/
+├── tsconfig.json                 # CommonJS override for ts-node
+├── support/
+│   ├── world.ts                  # CustomWorld: page + Page Objects per scenario
+│   └── hooks.ts                  # Chromium lifecycle + failure screenshots
+├── level-00-installation/        # wiring smoke (1 scenario)
+├── level-01-basic/               # Feature/Background/Given-When-Then (3 scenarios)
+└── level-02-data-driven/         # Scenario Outline + Data Table + external JSON (9 scenarios)
+```
+
+### Run
+
+```bash
+npm run cucumber:level0    # 1 scenario  (2 steps)  — install/wiring smoke
+npm run cucumber:level1    # 3 scenarios (9 steps)  — basic login scenarios
+npm run cucumber:level2    # 9 scenarios (31 steps) — data-driven techniques
+npm run cucumber           # all levels
+npm run cucumber:headed    # watch it in a real browser
+```
+
+HTML report renders to `reports/cucumber/report.html` (gitignored).
 
 ---
 
