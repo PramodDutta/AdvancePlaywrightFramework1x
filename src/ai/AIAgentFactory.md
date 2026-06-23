@@ -1,6 +1,8 @@
-AI Agent Factory + Playwright
+# AI Agent Factory + Playwright
 
-Parent Lib - LIGHT Framework -> Allow you to create a AI Agents with simple prompts. 
+Agent Factory basically allows any user to create the agents which can interact with Playwright anytime with the simple prompt. You give the prompt, you give the output, you will give the inputs, and you will get a proper output from the LLMGateway automatically. It can be open source by using Open Router, Groq, Groq or OpenAI, Claude AI, anything 
+
+### Parent Lib - LIGHT Framework -> Allow you to create a AI Agents with simple prompts. 
 
 1. LLMGateway Access - llmGateway() -> API key - Groq.com, openrouter, OpenAI, Claude AI. ( keep the model info outside in json file)
 2. CustomDataGenerator_AIAgent : Agent. -> custom structure data.
