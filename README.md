@@ -35,6 +35,7 @@ A complete, opinionated, batteries-included Playwright framework with **Page Obj
 - [Reporting](#reporting)
 - [Custom TTA Report — Visual Flow](#custom-tta-report--visual-flow)
 - [AI Agent Rules](#ai-agent-rules)
+- [Playwright Test Agents (.github/agents)](#playwright-test-agents-githubagents)
 - [Project Rules](#project-rules)
 - [Phase 1 Walkthrough](#phase-1-walkthrough)
 - [Contributing](#contributing)
@@ -804,6 +805,41 @@ This repo ships rules for every major AI coding assistant:
 | Antigravity / Codex / Aider / Jules | [`AGENTS.md`](./AGENTS.md) |
 
 All enforce the same rule: **`npm run typecheck && npm run lint`** after every test change.
+
+---
+
+## Playwright Test Agents (.github/agents)
+
+Three custom agents (Copilot / Claude / opencode compatible) automate the
+**plan → generate → heal** loop, and they are tailored to *this* framework — they already know the
+TTACart Page Objects, the `booker.fixture` API layer, the path aliases, the lowercase tag set, and
+the `typecheck + lint` gate, so generated code follows the rules instead of inventing its own.
+
+```mermaid
+flowchart LR
+    A[tta-playwright-test-planner] -->|plan in specs/| B[tta-playwright-test-generator]
+    B -->|spec in src/tests/| C[tta-playwright-test-healer]
+    C -->|fix POM / @testdata| B
+```
+
+| Agent | Role |
+|-------|------|
+| **tta-playwright-test-planner** | Explores the app and writes a framework-aware plan to `specs/`, naming the exact Page Objects, fixtures and tags to use. |
+| **tta-playwright-test-generator** | Implements the plan as POM-based specs (no raw selectors), then runs `typecheck + lint`. |
+| **tta-playwright-test-healer** | Debugs failures and fixes them *in the right layer* — selectors into the Page Object, payloads into `@testdata` — never inline hacks. |
+
+### MCP vs CLI variants
+
+Each agent ships in two flavours:
+
+| Folder | Driver | When to use |
+|--------|--------|-------------|
+| [`.github/agents/`](./.github/agents/) | Playwright **MCP** server (`run-test-mcp-server`) | Richest tool surface; higher token cost. |
+| [`.github/agents/cli/`](./.github/agents/cli/) (`*-cli`) | Playwright **CLI** (`playwright-cli`) | Same rules, far cheaper — each command returns a compact snapshot file with `eN` refs instead of a full DOM dump. |
+
+Both variants enforce the identical framework rules: Page Object Model only, path aliases, lowercase
+tags (`@p0 @p1 @e2e @smoke @lor`), `@utils/logger` over `console.log`, and a green
+`npm run typecheck && npm run lint` before any task is considered done.
 
 ---
 
