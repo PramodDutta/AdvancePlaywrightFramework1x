@@ -594,34 +594,44 @@ BDD track mirrors the rest of the curriculum.
 ```
 src/cucumber/
 ├── support/
-│   ├── world.ts                 # CustomWorld — launches Chromium, exposes this.page
-│   └── hooks.ts                 # Before/After — open/close browser, screenshot on fail
+│   ├── world.ts                 # CustomWorld — page + every Page Object + CREDS
+│   └── hooks.ts                 # BeforeAll/AfterAll browser, Before/After context, shot on fail
 └── level-00-Installation/
     ├── feature/smoke.feature    # Gherkin scenario
-    └── steps/smoke.spec.ts      # Step defs (import LoginPage, drive this.page)
+    └── steps/smoke.spec.ts      # Step defs (drive this.loginPage / this.inventoryPage …)
 ```
+
+`CustomWorld` launches one shared Chromium (in `BeforeAll`), opens a fresh
+context + page per scenario, and pre-builds every Page Object
+(`this.loginPage`, `this.inventoryPage`, `this.cartPage`, …) plus a `CREDS`
+helper — so step defs reuse the exact same POM as the Playwright suite.
 
 **Feature** (`smoke.feature`):
 
 ```gherkin
 @level0 @smoke
-Feature: Cucumber + Playwright wiring (Level 0)
+Feature: TTACart login (Level 0)
 
-  Scenario: The TTACart login page loads
-    Given I open the TTACart login page
-    Then the page title should contain "TTACart"
+  Scenario: A standard user can log in and reach the inventory
+    Given I am on the TTACart login page
+    When I log in as the standard user
+    Then the inventory page is displayed
 ```
 
 **Step definitions** (`smoke.spec.ts`) — `this` is the `CustomWorld`, so steps
-get a live Playwright `page` and can reuse Page Objects:
+reach the pre-built Page Objects directly:
 
 ```ts
-Given('I open the TTACart login page', async function (this: CustomWorld) {
-    await this.page.goto(LoginPage.PATH);
+Given('I am on the TTACart login page', async function (this: CustomWorld) {
+    await this.loginPage.open();
 });
 
-Then('the page title should contain {string}', async function (this: CustomWorld, expected: string) {
-    await expect(this.page).toHaveTitle(new RegExp(expected, 'i'));
+When('I log in as the standard user', async function (this: CustomWorld) {
+    await this.loginPage.loginAs(CREDS.standardUser, CREDS.password);
+});
+
+Then('the inventory page is displayed', async function (this: CustomWorld) {
+    await this.inventoryPage.assertLoaded();
 });
 ```
 

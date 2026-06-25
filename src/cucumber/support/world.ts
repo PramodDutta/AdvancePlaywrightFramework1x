@@ -1,40 +1,47 @@
-import { setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
-import { Browser, BrowserContext, Page, chromium } from '@playwright/test';
+import { World, IWorldOptions, setWorldConstructor } from "@cucumber/cucumber";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
 
-/**
- * CustomWorld - the per-scenario context shared across step definitions.
- *
- * Each Cucumber scenario gets a fresh World instance. We launch a Chromium
- * browser in `open()` (called from a Before hook) and tear it down in
- * `close()` (After hook). Step defs reach the live page via `this.page`.
- *
- * `baseURL` mirrors the Playwright config default so relative paths such as
- * `LoginPage.PATH` resolve the same way they do in the Playwright runner.
- */
+import { LoginPage } from "../../pages/LoginPage";
+import { InventoryPage } from "../../pages/InventoryPage";
+import { CartPage } from "../../pages/CartPage";
+import { CheckoutStepOnePage } from "../../pages/CheckoutStepOnePage";
+import { CheckoutStepTwoPage } from "../../pages/CheckoutStepTwoPage";
+import { CheckoutCompletePage } from "../../pages/CheckoutCompletePage";
 
-const BASE_URL =
-    process.env.BASE_URL || process.env.QA_BASE_URL || 'https://app.thetestingacademy.com';
+export const BASE_URL =
+  process.env.BASE_URL ?? "https://app.thetestingacademy.com";
+
+export const CREDS = {
+  standardUser: process.env.STANDARD_USER ?? "standard_user",
+  password: process.env.TTA_SECRET ?? "tta_secret",
+} as const;
 
 export class CustomWorld extends World {
-    browser!: Browser;
-    context!: BrowserContext;
-    page!: Page;
+  browser!: Browser;
+  context!: BrowserContext;
+  page!: Page;
 
-    constructor(options: IWorldOptions) {
-        super(options);
-    }
+  loginPage!: LoginPage;
+  inventoryPage!: InventoryPage;
+  cartPage!: CartPage;
+  checkoutStepOnePage!: CheckoutStepOnePage;
+  checkoutStepTwoPage!: CheckoutStepTwoPage;
+  checkoutCompletePage!: CheckoutCompletePage;
 
-    async open(): Promise<void> {
-        this.browser = await chromium.launch({ headless: !process.env.HEADED });
-        this.context = await this.browser.newContext({ baseURL: BASE_URL });
-        this.page = await this.context.newPage();
-    }
+  scratch: Record<string, unknown> = {};
 
-    async close(): Promise<void> {
-        await this.page?.close();
-        await this.context?.close();
-        await this.browser?.close();
-    }
+  constructor(options: IWorldOptions) {
+    super(options);
+  }
+
+  initPages(): void {
+    this.loginPage = new LoginPage(this.page);
+    this.inventoryPage = new InventoryPage(this.page);
+    this.cartPage = new CartPage(this.page);
+    this.checkoutStepOnePage = new CheckoutStepOnePage(this.page);
+    this.checkoutStepTwoPage = new CheckoutStepTwoPage(this.page);
+    this.checkoutCompletePage = new CheckoutCompletePage(this.page);
+  }
 }
 
 setWorldConstructor(CustomWorld);

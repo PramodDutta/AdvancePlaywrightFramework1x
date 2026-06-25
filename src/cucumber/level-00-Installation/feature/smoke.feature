@@ -1,6 +1,10 @@
 @level0 @smoke
-Feature: Cucumber + Playwright wiring (Level 0)
+Feature: TTACart login (Level 0)
 
-  Scenario: The TTACart login page loads
-    Given I open the TTACart login page
-    Then the page title should contain "TTACart"
+  Verifies the Cucumber + Playwright wiring end to end by driving the
+  Page Objects exposed on the CustomWorld.
+
+  Scenario: A standard user can log in and reach the inventory
+    Given I am on the TTACart login page
+    When I log in as the standard user
+    Then the inventory page is displayed

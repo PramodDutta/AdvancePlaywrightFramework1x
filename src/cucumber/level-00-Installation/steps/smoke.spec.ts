@@ -1,12 +1,14 @@
-import { Given, Then } from '@cucumber/cucumber';
-import { expect } from '@playwright/test';
-import { CustomWorld } from '../../support/world';
-import { LoginPage } from '../../../pages/LoginPage';
+import { Given, When, Then } from "@cucumber/cucumber";
+import { CustomWorld, CREDS } from "../../support/world";
 
-Given('I open the TTACart login page', async function (this: CustomWorld) {
-    await this.page.goto(LoginPage.PATH);
+Given("I am on the TTACart login page", async function (this: CustomWorld) {
+  await this.loginPage.open();
 });
 
-Then('the page title should contain {string}', async function (this: CustomWorld, expected: string) {
-    await expect(this.page).toHaveTitle(new RegExp(expected, 'i'));
+When("I log in as the standard user", async function (this: CustomWorld) {
+  await this.loginPage.loginAs(CREDS.standardUser, CREDS.password);
+});
+
+Then("the inventory page is displayed", async function (this: CustomWorld) {
+  await this.inventoryPage.assertLoaded();
 });

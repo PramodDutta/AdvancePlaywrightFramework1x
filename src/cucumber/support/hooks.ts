@@ -1,23 +1,38 @@
-import { Before, After, setDefaultTimeout, Status, ITestCaseHookParameter } from '@cucumber/cucumber';
-import { CustomWorld } from './world';
+import {
+  BeforeAll,
+  AfterAll,
+  Before,
+  After,
+  Status,
+  setDefaultTimeout,
+} from "@cucumber/cucumber";
+import { chromium, Browser } from "@playwright/test";
+import { CustomWorld, BASE_URL } from "./world";
 
-/**
- * Scenario lifecycle hooks.
- *
- *  - Before  -> launch a browser + page (CustomWorld.open)
- *  - After   -> on failure, attach a screenshot, then close the browser
- */
+setDefaultTimeout(60_000);
 
-setDefaultTimeout(30 * 1000);
+let browser: Browser;
 
-Before(async function (this: CustomWorld) {
-    await this.open();
+BeforeAll(async function () {
+  browser = await chromium.launch({ headless: !process.env.HEADED });
 });
 
-After(async function (this: CustomWorld, scenario: ITestCaseHookParameter) {
-    if (scenario.result?.status === Status.FAILED && this.page) {
-        const screenshot = await this.page.screenshot();
-        this.attach(screenshot, 'image/png');
-    }
-    await this.close();
+AfterAll(async function () {
+  await browser?.close();
+});
+
+Before(async function (this: CustomWorld) {
+  this.browser = browser;
+  this.context = await browser.newContext({ baseURL: BASE_URL });
+  this.page = await this.context.newPage();
+  this.initPages();
+});
+
+After(async function (this: CustomWorld, { result }) {
+  if (result?.status === Status.FAILED && this.page) {
+    const png = await this.page.screenshot();
+    this.attach(png, "image/png");
+  }
+  await this.page?.close();
+  await this.context?.close();
 });
