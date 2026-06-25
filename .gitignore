@@ -21,6 +21,9 @@ yarn-error.log
 # TTA Custom Reporter
 /tta-report/
 
+# Generated run/report output (Cucumber HTML, run JSON)
+/reports/
+
 # Winston logs
 /logs/
 

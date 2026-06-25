@@ -33,7 +33,7 @@ The guide is split into three parts, beginner → builder, followed by the showc
 - [Folder Structure](#folder-structure) · [Path Aliases](#path-aliases) · [NPM Scripts](#npm-scripts) · [Module System](#module-system-commonjs) · [Reporting](#reporting) · [AI Agent Rules](#ai-agent-rules) · [Project Rules](#project-rules) · [CI/CD](#cicd)
 
 **Part 3 — Creating the framework**
-- [Element Utilities](#element-utilities-utilelementlocator) · [Page Objects](#page-objects-basepage) · [Fixtures](#fixtures-page-object-injection) · [Test Data Factory](#test-data-factory-faker) · [Writing Tests](#writing-tests--steps--logging) · [Per-Step Screenshots](#per-step-screenshots-visualstep) · [End-to-End Checkout](#end-to-end-checkout-flow) · [API Testing](#api-testing) · [JSONPath](#jsonpath-queries-jsonpath-plus) · [JSON Schema](#json-schema-validation-ajv) · [Tags](#test-tags--filtering) · [Logging](#logging-winston) · [Custom TTA Report](#custom-tta-report--visual-flow)
+- [Element Utilities](#element-utilities-utilelementlocator) · [Page Objects](#page-objects-basepage) · [Fixtures](#fixtures-page-object-injection) · [Test Data Factory](#test-data-factory-faker) · [Writing Tests](#writing-tests--steps--logging) · [Per-Step Screenshots](#per-step-screenshots-visualstep) · [End-to-End Checkout](#end-to-end-checkout-flow) · [BDD with Cucumber](#bdd-with-cucumber-gherkin) · [API Testing](#api-testing) · [JSONPath](#jsonpath-queries-jsonpath-plus) · [JSON Schema](#json-schema-validation-ajv) · [Tags](#test-tags--filtering) · [Logging](#logging-winston) · [Custom TTA Report](#custom-tta-report--visual-flow)
 
 **Showcase**
 - [AI Agent Factory & Showcase](#-showcase--ai-agent-factory) · [Phase 1 Walkthrough](#phase-1-walkthrough) · [Contributing](#contributing) · [Author](#author)
@@ -43,6 +43,7 @@ The guide is split into three parts, beginner → builder, followed by the showc
 - **Playwright Test runner** — parallel, retries, projects, trace viewer
 - **TypeScript strict mode** with path aliases (`@pages`, `@utils`, `@api`, …)
 - **Page Object Model** under `src/pages/` · **Custom Fixtures** under `src/fixtures/`
+- **BDD layer** — Cucumber + Gherkin (`src/cucumber/`) reusing the same Page Objects, HTML report
 - **API client layer** under `src/api/` (REST + GraphQL ready) + a **dedicated API project**
 - **Multi-env config** via `dotenv` — qa, stg, prod, dev
 - **Data-driven testing** — CSV (`csv-parse`), JSON, XLSX (`xlsx`) · **Faker** test-data factories
@@ -151,6 +152,12 @@ AdvancePlaywrightFramework1x/
 │   ├── api/                   # API clients (REST / GraphQL) — BookingApi
 │   ├── config/                # Env loaders + credentials accessor
 │   │   └── credentials.ts     # Login creds sourced from .env
+│   ├── cucumber/              # BDD layer (Cucumber + Gherkin)
+│   │   ├── support/           # world.ts (CustomWorld) + hooks.ts (browser lifecycle)
+│   │   ├── level-00-Installation/
+│   │   │   ├── feature/       # *.feature Gherkin specs
+│   │   │   └── steps/         # *.spec.ts step definitions (reuse Page Objects)
+│   │   └── tsconfig.json      # CommonJS + path aliases for ts-node
 │   ├── fixtures/              # Playwright custom fixtures
 │   │   ├── test-base.ts       # `test` extended with a fixture per Page Object
 │   │   └── booker.fixture.ts  # bookingApi + bookerToken fixtures
@@ -185,6 +192,7 @@ AdvancePlaywrightFramework1x/
 ├── docs/                      # README images, skills, phase logs
 ├── rules/                     # Canonical project rules
 ├── playwright.config.ts       # Playwright configuration
+├── cucumber.js                # Cucumber runner config (ts-node + path aliases)
 ├── tsconfig.json              # TypeScript config + path aliases
 └── README.md
 ```
@@ -230,6 +238,9 @@ import { llmGateway } from '@ai/index';
 | `test:report` | Open Playwright HTML report |
 | `test:report:ci` | Serve report on `0.0.0.0:9323` for CI |
 | `test:allure` | Generate + open Allure HTML |
+| `test:bdd` | Run all Cucumber (BDD) feature files |
+| `test:bdd:smoke` | Cucumber scenarios tagged `@smoke` |
+| `test:bdd:report` | Open the Cucumber HTML report |
 | `lint` / `lint:fix` | ESLint check / fix |
 | `typecheck` | `tsc --noEmit` |
 | `format` / `format:check` | Prettier |
@@ -568,6 +579,63 @@ test('should complete checkout successfully', async ({
     await visualStep(page, 'Order is complete', async () => checkoutCompletePage.assertOrderComplete());
 });
 ```
+
+## BDD with Cucumber (Gherkin)
+
+**Concept:** A thin **BDD layer** lives under `src/cucumber/`, running on
+[`@cucumber/cucumber`](https://github.com/cucumber/cucumber-js) with `ts-node`.
+Business-readable `.feature` files drive TypeScript step definitions that reuse
+the **same Page Objects** as the Playwright suite — no parallel automation stack.
+
+**Why:** Stakeholder-readable specs (Given/When/Then) on top of the existing POM.
+Feature files are grouped by learning **level** (`level-00-Installation`, …) so the
+BDD track mirrors the rest of the curriculum.
+
+```
+src/cucumber/
+├── support/
+│   ├── world.ts                 # CustomWorld — launches Chromium, exposes this.page
+│   └── hooks.ts                 # Before/After — open/close browser, screenshot on fail
+└── level-00-Installation/
+    ├── feature/smoke.feature    # Gherkin scenario
+    └── steps/smoke.spec.ts      # Step defs (import LoginPage, drive this.page)
+```
+
+**Feature** (`smoke.feature`):
+
+```gherkin
+@level0 @smoke
+Feature: Cucumber + Playwright wiring (Level 0)
+
+  Scenario: The TTACart login page loads
+    Given I open the TTACart login page
+    Then the page title should contain "TTACart"
+```
+
+**Step definitions** (`smoke.spec.ts`) — `this` is the `CustomWorld`, so steps
+get a live Playwright `page` and can reuse Page Objects:
+
+```ts
+Given('I open the TTACart login page', async function (this: CustomWorld) {
+    await this.page.goto(LoginPage.PATH);
+});
+
+Then('the page title should contain {string}', async function (this: CustomWorld, expected: string) {
+    await expect(this.page).toHaveTitle(new RegExp(expected, 'i'));
+});
+```
+
+**Run it:**
+
+```bash
+npm run test:bdd            # all feature files
+npm run test:bdd:smoke      # only @smoke scenarios
+npm run test:bdd:report     # open reports/cucumber/report.html
+```
+
+The runner is configured in `cucumber.js` (registers `ts-node` +
+`tsconfig-paths`, points `@`-aliases at `src/cucumber/tsconfig.json`, and writes
+an HTML report to `reports/cucumber/report.html`).
 
 ## API Testing
 
