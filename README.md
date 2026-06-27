@@ -240,7 +240,9 @@ import { llmGateway } from '@ai/index';
 | `test:allure` | Generate + open Allure HTML |
 | `test:bdd` | Run all Cucumber (BDD) feature files |
 | `test:bdd:smoke` | Cucumber scenarios tagged `@smoke` |
-| `test:bdd:report` | Open the Cucumber HTML report |
+| `test:bdd:report` | Open the built-in Cucumber HTML report |
+| `test:bdd:tta` | Run BDD, then open the custom TTA report |
+| `cucumber:level0` / `level1` / `level2` | Run one level by profile/tag |
 | `lint` / `lint:fix` | ESLint check / fix |
 | `typecheck` | `tsc --noEmit` |
 | `format` / `format:check` | Prettier |
@@ -640,12 +642,39 @@ Then('the inventory page is displayed', async function (this: CustomWorld) {
 ```bash
 npm run test:bdd            # all feature files
 npm run test:bdd:smoke      # only @smoke scenarios
-npm run test:bdd:report     # open reports/cucumber/report.html
+npm run test:bdd:report     # open the built-in Cucumber HTML report
+npm run test:bdd:tta        # run, then open the custom TTA report
+npm run cucumber:level0     # run a single level by profile/tag (level0/1/2)
 ```
 
 The runner is configured in `cucumber.js` (registers `ts-node` +
-`tsconfig-paths`, points `@`-aliases at `src/cucumber/tsconfig.json`, and writes
-an HTML report to `reports/cucumber/report.html`).
+`tsconfig-paths`, points `@`-aliases at `src/cucumber/tsconfig.json`). Profiles
+`level0` / `level1` / `level2` filter by the matching `@levelN` tag.
+
+### Same TTA report as Playwright
+
+Cucumber runs render the **exact same branded TTA report** as the Playwright
+suite (stats dashboard, per-step screenshots, AI Verdict + Flaky tabs). Cucumber
+drives _formatters_, not Playwright's `Reporter`, so the bridge is:
+
+- **`src/cucumber/support/ttaFormatter.ts`** — a custom Cucumber formatter that
+  rebuilds the reporter's `TestData[]` / `SuiteStats` model from the message
+  stream (one scenario → one test, each step → a `StepData`, step attachments →
+  screenshots) and hands it to…
+- **`CustomReporter.renderExternalRun(...)`** — a public entry point that reuses
+  the entire HTML + RCA + Flaky pipeline (no Playwright `FullConfig` required).
+- **`ttaFormatter.cjs`** — a thin CommonJS shim, because Cucumber loads
+  formatters via native ESM `import()` which can't resolve a `.ts` directly.
+- An **`AfterStep`** hook attaches a screenshot per Gherkin step, so the report
+  shows a shot for every step.
+
+Output lands in `tta-report/` exactly like a Playwright run:
+
+```bash
+npm run test:bdd:tta        # generates tta-report/ and opens it
+```
+
+![TTA custom report from a Cucumber BDD run](docs/images/cucumber-tta-report.png)
 
 ## API Testing
 

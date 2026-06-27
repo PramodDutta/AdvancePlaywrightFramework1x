@@ -3,6 +3,7 @@ import {
   AfterAll,
   Before,
   After,
+  AfterStep,
   Status,
   setDefaultTimeout,
 } from "@cucumber/cucumber";
@@ -26,6 +27,15 @@ Before(async function (this: CustomWorld) {
   this.context = await browser.newContext({ baseURL: BASE_URL });
   this.page = await this.context.newPage();
   this.initPages();
+});
+
+// Attach a screenshot after every Gherkin step so the TTA report shows a shot
+// per step (the custom formatter wires these into each StepData).
+AfterStep(async function (this: CustomWorld) {
+  if (this.page) {
+    const png = await this.page.screenshot();
+    this.attach(png, "image/png");
+  }
 });
 
 After(async function (this: CustomWorld, { result }) {

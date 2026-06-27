@@ -21,7 +21,7 @@ import { analyzeFailure, type RcaVerdict } from '../ai/agents/rcaAgent';
 import { analyzeFlaky, type BuildSummary, type FlakyResult } from '../ai/agents/flakyAnalyzer';
 import { hasApiKey } from '../ai/config/providers';
 
-interface StepData {
+export interface StepData {
     title: string;
     category: string;
     duration: number;
@@ -36,7 +36,7 @@ interface StepData {
     videoEndTime?: number;
 }
 
-interface TestData {
+export interface TestData {
     id: string;
     title: string;
     fullTitle: string;
@@ -62,7 +62,7 @@ interface FileGroup {
     stats: { passed: number; failed: number; skipped: number; total: number };
 }
 
-interface SuiteStats {
+export interface SuiteStats {
     total: number;
     passed: number;
     failed: number;
@@ -74,7 +74,10 @@ class CustomTTAReporter implements Reporter {
     private testResults: TestData[] = [];
     private fileGroups: Map<string, FileGroup> = new Map();
     private suiteStats: SuiteStats = { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0 };
-    private config!: FullConfig;
+    private config?: FullConfig;
+    // Meta used by the HTML when there is no Playwright FullConfig (e.g. a
+    // Cucumber run feeding the reporter via renderExternalRun).
+    private reportMeta?: { browser?: string; workers?: number };
     private startTime: Date = new Date();
     private endTime: Date = new Date();
     private outputFile: string = 'tta-report/index.html';
@@ -457,6 +460,36 @@ class CustomTTAReporter implements Reporter {
         console.log(`✅ Report generated: ${this.outputFile}`);
     }
 
+    /**
+     * Render a TTA report from an EXTERNAL run that does NOT flow through
+     * Playwright's Reporter callbacks (e.g. a Cucumber run via the custom
+     * formatter). The caller builds the same TestData[]/SuiteStats model and we
+     * reuse the exact same HTML + RCA + Flaky pipeline as a Playwright run.
+     *
+     * @returns the path of the generated report file.
+     */
+    async renderExternalRun(input: {
+        runId: string;
+        startTime: Date;
+        endTime: Date;
+        tests: TestData[];
+        stats: SuiteStats;
+        meta?: { browser?: string; workers?: number };
+    }): Promise<string> {
+        this.runId = input.runId;
+        this.outputFile = `tta-report/report_${input.runId}.html`;
+        this.startTime = input.startTime;
+        this.endTime = input.endTime;
+        this.testResults = input.tests;
+        this.suiteStats = input.stats;
+        this.reportMeta = input.meta;
+
+        await this.runRcaAnalysis();
+        await this.runFlakyAnalysis();
+        await this.generateReport();
+        return this.outputFile;
+    }
+
     // RCA AI agent: analyze each failed test via the LLM gateway and store a verdict.
     private async runRcaAnalysis(): Promise<void> {
         const failures = this.testResults.filter(
@@ -764,7 +797,7 @@ class CustomTTAReporter implements Reporter {
     }
 
     private generateHTML(): string {
-        const browserName = this.config.projects[0]?.name || 'chrome';
+        const browserName = this.config?.projects[0]?.name || this.reportMeta?.browser || 'chrome';
         const platform = process.platform === 'darwin' ? 'Mac' : process.platform === 'win32' ? 'Windows' : 'Linux';
 
         return `<!DOCTYPE html>
@@ -871,7 +904,7 @@ class CustomTTAReporter implements Reporter {
             </div>
             <div class="meta-item">
                 <span class="meta-label">Workers</span>
-                <span class="meta-value">${this.config.workers || 1}</span>
+                <span class="meta-value">${this.config?.workers ?? this.reportMeta?.workers ?? 1}</span>
             </div>
             <div class="meta-item">
                 <span class="meta-label">Run ID</span>

@@ -40,8 +40,8 @@ export default tseslint.config(
         },
     },
     {
-        // Root CommonJS config files (e.g. cucumber.js) — Node globals + require().
-        files: ['cucumber.js', '*.cjs'],
+        // CommonJS config / loader files (e.g. cucumber.js, *.cjs shims) — Node globals + require().
+        files: ['cucumber.js', '**/*.cjs'],
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: 'commonjs',
