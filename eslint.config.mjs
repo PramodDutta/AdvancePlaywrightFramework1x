@@ -16,6 +16,7 @@ export default tseslint.config(
             'allure-results/**',
             'allure-report/**',
             'tta-report/**',
+            'reports/**',
             'logs/**',
             'coverage/**',
             '**/*.original.md',
@@ -36,6 +37,18 @@ export default tseslint.config(
                 'warn',
                 { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
             ],
+        },
+    },
+    {
+        // CommonJS config / loader files (e.g. cucumber.js, *.cjs shims) — Node globals + require().
+        files: ['cucumber.js', '**/*.cjs'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'commonjs',
+            globals: { ...globals.node },
+        },
+        rules: {
+            '@typescript-eslint/no-require-imports': 'off',
         },
     },
     // Turn off any stylistic rules that would fight Prettier. Keep last.
